@@ -14,10 +14,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -47,6 +50,8 @@ fun AppDrawerScreen(
         if (searchQuery.isBlank()) allApps
         else allApps.filter { it.label.contains(searchQuery, ignoreCase = true) }
     }
+
+    val favoriteSet = remember(favoritePackages) { favoritePackages.toHashSet() }
 
     LaunchedEffect(isFullyVisible) {
         if (isFullyVisible) {
@@ -124,10 +129,11 @@ fun AppDrawerScreen(
                 modifier = Modifier.fillMaxSize()
             ) {
                 items(filteredApps, key = { it.packageName }) { app ->
-                    val isFavorite = app.packageName in favoritePackages
+                    val isFavorite = app.packageName in favoriteSet
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .animateItem()
                             .combinedClickable(
                                 onClick = { onAppLaunch(app) },
                                 onLongClick = {

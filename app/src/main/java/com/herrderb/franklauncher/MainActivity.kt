@@ -21,7 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.herrderb.franklauncher.ui.drawer.AppDrawerScreen
@@ -196,11 +196,13 @@ class MainActivity : ComponentActivity() {
 
                     // Drawer overlay - slides from right following gesture
                     val drawerOffsetFraction = if (isDraggingDrawer) (1f - drawerProgress) else drawerOffsetAnim
-                    val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
                     if (currentScreen == Screen.DRAWER || drawerProgress > 0f || drawerOffsetAnim < 1f) {
+                        val favoritePackagesList = remember(uiState.favoriteApps) {
+                            uiState.favoriteApps.map { it.packageName }
+                        }
                         AppDrawerScreen(
                             allApps = uiState.allApps,
-                            favoritePackages = uiState.favoriteApps.map { it.packageName },
+                            favoritePackages = favoritePackagesList,
                             showIcons = uiState.showDrawerIcons,
                             onAppLaunch = { viewModel.launchApp(it) },
                             onAddFavorite = { viewModel.addFavoriteApp(it) },
@@ -211,7 +213,9 @@ class MainActivity : ComponentActivity() {
                             isFullyVisible = currentScreen == Screen.DRAWER && !isDraggingDrawer && drawerOffsetFraction == 0f,
                             modifier = Modifier
                                 .fillMaxSize()
-                                .offset(x = screenWidthDp * drawerOffsetFraction)
+                                .graphicsLayer {
+                                    translationX = size.width * drawerOffsetFraction
+                                }
                                 .background(MaterialTheme.colorScheme.background.copy(alpha = 0.95f))
                         )
                     }
