@@ -13,6 +13,9 @@ import com.herrderb.franklauncher.data.weather.StationLocator
 import com.herrderb.franklauncher.data.hydro.HydroData
 import com.herrderb.franklauncher.data.hydro.HydroProvider
 import com.herrderb.franklauncher.ui.theme.ThemeMode
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ProcessLifecycleOwner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -43,6 +46,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    private val refreshInterval = 5 * 60 * 1000L
+    private var lastWeatherRefresh = 0L
+    private var lastHydroRefresh = 0L
 
     init {
         viewModelScope.launch {
@@ -92,7 +99,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             while (true) {
                 refreshWeather()
-                delay(5 * 60 * 1000L)
+                lastWeatherRefresh = System.currentTimeMillis()
+                delay(refreshInterval)
             }
         }
 
@@ -100,9 +108,24 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             while (true) {
                 refreshHydro()
-                delay(5 * 60 * 1000L)
+                lastHydroRefresh = System.currentTimeMillis()
+                delay(refreshInterval)
             }
         }
+
+        // On resume, refresh immediately if interval has elapsed
+        val lifecycleObserver = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                val now = System.currentTimeMillis()
+                if (now - lastWeatherRefresh >= refreshInterval) {
+                    viewModelScope.launch { refreshWeather(); lastWeatherRefresh = System.currentTimeMillis() }
+                }
+                if (now - lastHydroRefresh >= refreshInterval) {
+                    viewModelScope.launch { refreshHydro(); lastHydroRefresh = System.currentTimeMillis() }
+                }
+            }
+        }
+        ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
     }
 
     private suspend fun refreshWeather() {
