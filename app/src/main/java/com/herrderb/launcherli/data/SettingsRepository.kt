@@ -1,14 +1,14 @@
-package com.herrderb.franklauncher.data
+package com.herrderb.launcherli.data
 
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
-import com.herrderb.franklauncher.ui.theme.ThemeMode
+import com.herrderb.launcherli.ui.theme.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "frank_settings")
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "launcherli_settings")
 
 class SettingsRepository(private val context: Context) {
 

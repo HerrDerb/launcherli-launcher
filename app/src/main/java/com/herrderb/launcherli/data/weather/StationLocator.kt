@@ -1,4 +1,4 @@
-package com.herrderb.franklauncher.data.weather
+package com.herrderb.launcherli.data.weather
 
 import android.Manifest
 import android.content.Context
@@ -95,7 +95,7 @@ class StationLocator(private val context: Context) {
         return try {
             val url = URL("https://data.geo.admin.ch/api/stac/v1/collections/ch.meteoschweiz.ogd-smn/items?limit=200")
             val connection = url.openConnection() as HttpURLConnection
-            connection.setRequestProperty("User-Agent", "FrankLauncher/1.0")
+            connection.setRequestProperty("User-Agent", "Launcherli/1.0")
             connection.connectTimeout = 10000
             connection.readTimeout = 10000
 

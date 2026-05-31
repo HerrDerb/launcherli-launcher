@@ -1,4 +1,4 @@
-package com.herrderb.franklauncher.ui.drawer
+package com.herrderb.launcherli.ui.drawer
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -26,7 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
-import com.herrderb.franklauncher.data.AppInfo
+import com.herrderb.launcherli.data.AppInfo
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalFoundationApi::class)

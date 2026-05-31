@@ -1,4 +1,4 @@
-package com.herrderb.franklauncher.data.weather
+package com.herrderb.launcherli.data.weather
 
 /**
  * Registry of available weather adapters.

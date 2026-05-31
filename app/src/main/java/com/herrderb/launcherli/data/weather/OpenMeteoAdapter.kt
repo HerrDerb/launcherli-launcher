@@ -1,4 +1,4 @@
-package com.herrderb.franklauncher.data.weather
+package com.herrderb.launcherli.data.weather
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -25,7 +25,7 @@ class OpenMeteoAdapter : WeatherAdapter {
                 "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true&hourly=weather_code&forecast_hours=2"
             )
             val connection = url.openConnection() as HttpURLConnection
-            connection.setRequestProperty("User-Agent", "FrankLauncher/1.0")
+            connection.setRequestProperty("User-Agent", "Launcherli/1.0")
             connection.connectTimeout = 10000
             connection.readTimeout = 10000
 

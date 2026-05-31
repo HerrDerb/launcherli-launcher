@@ -1,4 +1,4 @@
-package com.herrderb.franklauncher.data.hydro
+package com.herrderb.launcherli.data.hydro
 
 data class HydroData(
     val stationKey: String,

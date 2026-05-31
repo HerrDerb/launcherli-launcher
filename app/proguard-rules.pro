@@ -1,2 +1,2 @@
-# Default ProGuard rules for Frank Launcher
+# Default ProGuard rules for Launcherli
 -keepattributes *Annotation*

@@ -1,4 +1,4 @@
-package com.herrderb.franklauncher
+package com.herrderb.launcherli
 
 import android.Manifest
 import android.content.ComponentName
@@ -24,11 +24,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.herrderb.franklauncher.ui.drawer.AppDrawerScreen
-import com.herrderb.franklauncher.ui.home.HomeScreen
-import com.herrderb.franklauncher.ui.home.HomeViewModel
-import com.herrderb.franklauncher.ui.settings.SettingsScreen
-import com.herrderb.franklauncher.ui.theme.FrankLauncherTheme
+import com.herrderb.launcherli.ui.drawer.AppDrawerScreen
+import com.herrderb.launcherli.ui.home.HomeScreen
+import com.herrderb.launcherli.ui.home.HomeViewModel
+import com.herrderb.launcherli.ui.settings.SettingsScreen
+import com.herrderb.launcherli.ui.theme.LauncherliTheme
 
 class MainActivity : ComponentActivity() {
 
@@ -78,7 +78,7 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
-            FrankLauncherTheme(themeMode = uiState.themeMode) {
+            LauncherliTheme(themeMode = uiState.themeMode) {
                 var currentScreen by remember { mutableStateOf(Screen.HOME) }
                 // Drawer gesture state: 0f = closed, 1f = fully open
                 var drawerProgress by remember { mutableFloatStateOf(0f) }

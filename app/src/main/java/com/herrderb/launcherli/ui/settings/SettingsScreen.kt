@@ -1,4 +1,4 @@
-package com.herrderb.franklauncher.ui.settings
+package com.herrderb.launcherli.ui.settings
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -13,7 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.herrderb.franklauncher.ui.theme.ThemeMode
+import com.herrderb.launcherli.ui.theme.ThemeMode
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -24,7 +24,7 @@ fun SettingsScreen(
     showDrawerIcons: Boolean,
     weatherApp: String,
     weatherAppInternational: String,
-    allApps: List<com.herrderb.franklauncher.data.AppInfo>,
+    allApps: List<com.herrderb.launcherli.data.AppInfo>,
     onThemeChange: (ThemeMode) -> Unit,
     onFavoriteTextSizeChange: (Float) -> Unit,
     onFavoriteAlignmentChange: (String) -> Unit,

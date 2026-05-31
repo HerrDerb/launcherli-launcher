@@ -1,4 +1,4 @@
-package com.herrderb.franklauncher.data.weather
+package com.herrderb.launcherli.data.weather
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -19,7 +19,7 @@ class MeteoSwissAdapter : WeatherAdapter {
             val station = config.stationId.ifBlank { "sma" }.lowercase()
             val url = URL("https://data.geo.admin.ch/ch.meteoschweiz.ogd-smn/$station/ogd-smn_${station}_h_now.csv")
             val connection = url.openConnection() as HttpURLConnection
-            connection.setRequestProperty("User-Agent", "FrankLauncher/1.0")
+            connection.setRequestProperty("User-Agent", "Launcherli/1.0")
             connection.connectTimeout = 10000
             connection.readTimeout = 10000
 
@@ -66,7 +66,7 @@ class MeteoSwissAdapter : WeatherAdapter {
                 "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&hourly=weather_code&forecast_hours=2&models=icon_seamless"
             )
             val connection = url.openConnection() as HttpURLConnection
-            connection.setRequestProperty("User-Agent", "FrankLauncher/1.0")
+            connection.setRequestProperty("User-Agent", "Launcherli/1.0")
             connection.connectTimeout = 10000
             connection.readTimeout = 10000
 

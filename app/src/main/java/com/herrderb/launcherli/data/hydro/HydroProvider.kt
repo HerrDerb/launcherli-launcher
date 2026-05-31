@@ -1,4 +1,4 @@
-package com.herrderb.franklauncher.data.hydro
+package com.herrderb.launcherli.data.hydro
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
@@ -78,7 +78,7 @@ class HydroProvider(private val context: Context) {
         return try {
             val url = String.format(STATION_DATA_URL, stationKey)
             val conn = URL(url).openConnection() as HttpURLConnection
-            conn.setRequestProperty("User-Agent", "FrankLauncher/1.0")
+            conn.setRequestProperty("User-Agent", "Launcherli/1.0")
             conn.connectTimeout = 10000
             conn.readTimeout = 10000
 
@@ -119,7 +119,7 @@ class HydroProvider(private val context: Context) {
         // Fetch fresh data
         return try {
             val conn = URL(GEOJSON_URL).openConnection() as HttpURLConnection
-            conn.setRequestProperty("User-Agent", "FrankLauncher/1.0")
+            conn.setRequestProperty("User-Agent", "Launcherli/1.0")
             conn.connectTimeout = 10000
             conn.readTimeout = 10000
 

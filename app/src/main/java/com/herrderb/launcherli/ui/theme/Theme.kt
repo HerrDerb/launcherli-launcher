@@ -1,4 +1,4 @@
-package com.herrderb.franklauncher.ui.theme
+package com.herrderb.launcherli.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
@@ -30,7 +30,7 @@ private val LightColorScheme = lightColorScheme(
 enum class ThemeMode { LIGHT, DARK, SYSTEM }
 
 @Composable
-fun FrankLauncherTheme(
+fun LauncherliTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     content: @Composable () -> Unit
 ) {

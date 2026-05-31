@@ -1,4 +1,4 @@
-package com.herrderb.franklauncher.data
+package com.herrderb.launcherli.data
 
 import android.content.Context
 import android.content.Intent

@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace 'com.herrderb.franklauncher'
+    namespace 'com.herrderb.launcherli'
     compileSdk 35
 
     defaultConfig {
-        applicationId "com.herrderb.franklauncher"
+        applicationId "com.herrderb.launcherli"
         minSdk 29
         targetSdk 35
         versionCode 1

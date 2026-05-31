@@ -1,4 +1,4 @@
-package com.herrderb.franklauncher.ui.home
+package com.herrderb.launcherli.ui.home
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -36,8 +36,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.herrderb.franklauncher.data.AppInfo
-import com.herrderb.franklauncher.data.weather.WeatherCondition
+import com.herrderb.launcherli.data.AppInfo
+import com.herrderb.launcherli.data.weather.WeatherCondition
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -483,7 +483,7 @@ fun HomeScreen(
                         .combinedClickable(onClick = {
                             val intent = android.content.Intent(
                                 android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                android.net.Uri.parse("package:com.herrderb.franklauncher")
+                                android.net.Uri.parse("package:com.herrderb.launcherli")
                             )
                             context.startActivity(intent)
                             showBottomSheet = false
