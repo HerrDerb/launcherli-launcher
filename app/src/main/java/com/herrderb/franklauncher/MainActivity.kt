@@ -62,7 +62,7 @@ class MainActivity : ComponentActivity() {
                 AlertDialog(
                     onDismissRequest = { showDefaultLauncherPrompt = false },
                     title = { Text("Set as Default Launcher") },
-                    text = { Text("Frank Launcher is not your default home app. Would you like to set it up?") },
+                    text = { Text("Launcherli is not your default home app. Would you like to set it up?") },
                     confirmButton = {
                         TextButton(onClick = {
                             showDefaultLauncherPrompt = false
