@@ -13,14 +13,14 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 class SettingsRepository(private val context: Context) {
 
     companion object {
-        private val WIDGET_HEIGHT_FRACTION = floatPreferencesKey("widget_height_fraction")
         private val THEME_MODE = stringPreferencesKey("theme_mode")
         private val FAVORITE_APPS = stringPreferencesKey("favorite_apps")
         private val HOMESCREEN_LOCKED = booleanPreferencesKey("homescreen_locked")
-    }
-
-    val widgetHeightFraction: Flow<Float> = context.dataStore.data.map { prefs ->
-        prefs[WIDGET_HEIGHT_FRACTION] ?: 0.5f
+        private val FAVORITE_TEXT_SIZE = floatPreferencesKey("favorite_text_size")
+        private val FAVORITE_ALIGNMENT = stringPreferencesKey("favorite_alignment")
+        private val SHOW_DRAWER_ICONS = booleanPreferencesKey("show_drawer_icons")
+        private val WEATHER_APP = stringPreferencesKey("weather_app")
+        private val WEATHER_APP_INTERNATIONAL = stringPreferencesKey("weather_app_international")
     }
 
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
@@ -39,8 +39,24 @@ class SettingsRepository(private val context: Context) {
         prefs[HOMESCREEN_LOCKED] ?: true
     }
 
-    suspend fun setWidgetHeightFraction(fraction: Float) {
-        context.dataStore.edit { it[WIDGET_HEIGHT_FRACTION] = fraction.coerceIn(0.2f, 0.8f) }
+    val favoriteTextSize: Flow<Float> = context.dataStore.data.map { prefs ->
+        prefs[FAVORITE_TEXT_SIZE] ?: 18f
+    }
+
+    val favoriteAlignment: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[FAVORITE_ALIGNMENT] ?: "left"
+    }
+
+    val showDrawerIcons: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[SHOW_DRAWER_ICONS] ?: false
+    }
+
+    val weatherApp: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[WEATHER_APP] ?: ""
+    }
+
+    val weatherAppInternational: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[WEATHER_APP_INTERNATIONAL] ?: ""
     }
 
     suspend fun setThemeMode(mode: ThemeMode) {
@@ -54,4 +70,25 @@ class SettingsRepository(private val context: Context) {
     suspend fun setHomescreenLocked(locked: Boolean) {
         context.dataStore.edit { it[HOMESCREEN_LOCKED] = locked }
     }
+
+    suspend fun setFavoriteTextSize(size: Float) {
+        context.dataStore.edit { it[FAVORITE_TEXT_SIZE] = size.coerceIn(12f, 32f) }
+    }
+
+    suspend fun setFavoriteAlignment(alignment: String) {
+        context.dataStore.edit { it[FAVORITE_ALIGNMENT] = alignment }
+    }
+
+    suspend fun setShowDrawerIcons(show: Boolean) {
+        context.dataStore.edit { it[SHOW_DRAWER_ICONS] = show }
+    }
+
+    suspend fun setWeatherApp(packageName: String) {
+        context.dataStore.edit { it[WEATHER_APP] = packageName }
+    }
+
+    suspend fun setWeatherAppInternational(packageName: String) {
+        context.dataStore.edit { it[WEATHER_APP_INTERNATIONAL] = packageName }
+    }
+
 }

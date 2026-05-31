@@ -3,12 +3,14 @@ package com.herrderb.franklauncher.data
 import android.content.Context
 import android.content.Intent
 import android.content.pm.LauncherApps
+import android.graphics.drawable.Drawable
 import android.os.UserManager
 
 data class AppInfo(
     val label: String,
     val packageName: String,
-    val activityName: String
+    val activityName: String,
+    val icon: Drawable? = null
 )
 
 class AppRepository(private val context: Context) {
@@ -23,7 +25,8 @@ class AppRepository(private val context: Context) {
                 AppInfo(
                     label = info.label.toString(),
                     packageName = info.applicationInfo.packageName,
-                    activityName = info.componentName.className
+                    activityName = info.componentName.className,
+                    icon = info.getBadgedIcon(0)
                 )
             }
             .sortedBy { it.label.lowercase() }
