@@ -4,7 +4,7 @@ package com.herrderb.launcherli.data.weather
  * Registry of available weather adapters.
  * Add new adapters here to make them selectable in settings.
  */
-object WeatherAdapterRegistry {
+open class WeatherAdapterRegistry {
 
     private val adapters = mutableMapOf<String, WeatherAdapter>()
 
@@ -17,9 +17,11 @@ object WeatherAdapterRegistry {
         adapters[adapter.id] = adapter
     }
 
-    fun getAdapter(id: String): WeatherAdapter? = adapters[id]
+    open fun getAdapter(id: String): WeatherAdapter? = adapters[id]
 
     fun getDefault(): WeatherAdapter = adapters.values.first()
 
     fun allAdapters(): List<WeatherAdapter> = adapters.values.toList()
+
+    companion object : WeatherAdapterRegistry()
 }
