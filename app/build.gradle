@@ -1,6 +1,5 @@
 plugins {
     id 'com.android.application'
-    id 'org.jetbrains.kotlin.android'
     id 'org.jetbrains.kotlin.plugin.compose'
 }
 
@@ -67,4 +66,15 @@ dependencies {
 
     debugImplementation 'androidx.compose.ui:ui-tooling'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
+}
+
+tasks.register('deploy', Exec) {
+    description = 'Build debug APK, install on connected device, and launch the app'
+    group = 'development'
+    dependsOn 'installDebug'
+    def adb = "${android.sdkDirectory}/platform-tools/adb"
+    commandLine adb, 'shell', 'am', 'start', '-n',
+        'com.herrderb.launcherli/.MainActivity',
+        '-a', 'android.intent.action.MAIN',
+        '-c', 'android.intent.category.HOME'
 }

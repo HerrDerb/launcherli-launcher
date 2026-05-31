@@ -6,7 +6,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.layout.LastBaseline
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
@@ -115,128 +117,142 @@ fun HomeScreen(
                     delay(msUntilNextMinute)
                 }
             }
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 16.dp, horizontal = 24.dp),
-                contentAlignment = Alignment.Center
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Clock + date (centered)
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.clickable {
-                        val intent = android.content.Intent(android.provider.AlarmClock.ACTION_SHOW_ALARMS)
-                        try { context.startActivity(intent) } catch (_: Exception) {}
-                    }
+                // Time row: weather (left) | clock (center) | hydro (right)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
+                    // Weather widget (left side, clickable)
+                    Box(
+                        modifier = Modifier.weight(1f).alignBy(LastBaseline),
+                        contentAlignment = Alignment.CenterEnd
+                    ) {
+                        uiState.weather?.let { weather ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .padding(end = 12.dp)
+                                    .clickable(onClick = onWeatherClick)
+                            ) {
+                                // Trend arrow based on +1h forecast
+                                weather.forecastCondition?.let { forecast ->
+                                    val trend = forecast.rank - weather.condition.rank
+                                    if (trend != 0) {
+                                        Icon(
+                                            imageVector = if (trend < 0) Icons.Outlined.ArrowUpward
+                                                else Icons.Outlined.ArrowDownward,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
+                                Icon(
+                                    imageVector = when (weather.condition) {
+                                        WeatherCondition.CLEAR -> Icons.Outlined.WbSunny
+                                        WeatherCondition.CLOUDY -> Icons.Outlined.Cloud
+                                        WeatherCondition.SNOWY -> Icons.Outlined.AcUnit
+                                        WeatherCondition.RAINY -> Icons.Outlined.WaterDrop
+                                    },
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onBackground,
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .padding(end = 6.dp)
+                                )
+                                Text(
+                                    text = "${weather.temperature.toInt()}°",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Light,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                            }
+                        }
+                    }
+
+                    // Clock time (center)
                     Text(
                         text = currentTime,
                         fontSize = 64.sp,
                         fontWeight = FontWeight.Light,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = currentDate,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Light,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                        )
-                        if (nextAlarmText.isNotEmpty()) {
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Icon(
-                                imageVector = Icons.Outlined.Alarm,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text(
-                                text = nextAlarmText,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Light,
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                            )
-                        }
-                    }
-                }
-
-                // Weather widget (left side, clickable)
-                uiState.weather?.let { weather ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
+                        color = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier
-                            .align(Alignment.CenterStart)
-                            .padding(start = 16.dp)
-                            .combinedClickable(onClick = onWeatherClick)
+                            .alignBy(LastBaseline)
+                            .clickable {
+                                val intent = android.content.Intent(android.provider.AlarmClock.ACTION_SHOW_ALARMS)
+                                try { context.startActivity(intent) } catch (_: Exception) {}
+                            }
+                    )
+
+                    // Hydro widget (right side, clickable)
+                    Box(
+                        modifier = Modifier.weight(1f).alignBy(LastBaseline),
+                        contentAlignment = Alignment.CenterStart
                     ) {
-                        // Trend arrow based on +1h forecast
-                        weather.forecastCondition?.let { forecast ->
-                            val trend = forecast.rank - weather.condition.rank
-                            if (trend != 0) {
-                                Icon(
-                                    imageVector = if (trend < 0) Icons.Outlined.ArrowUpward
-                                        else Icons.Outlined.ArrowDownward,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                                    modifier = Modifier.size(14.dp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .padding(start = 12.dp)
+                                .then(
+                                    if (uiState.hydro != null) Modifier.clickable(onClick = onHydroClick)
+                                    else Modifier
+                                )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Water,
+                                contentDescription = null,
+                                tint = if (uiState.hydro != null)
+                                    MaterialTheme.colorScheme.onBackground
+                                else
+                                    MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f),
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .padding(end = 4.dp)
+                            )
+                            if (uiState.hydro != null) {
+                                Text(
+                                    text = "${uiState.hydro.temperature.toInt()}°",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Light,
+                                    color = MaterialTheme.colorScheme.onBackground
                                 )
                             }
                         }
-                        Icon(
-                            imageVector = when (weather.condition) {
-                                WeatherCondition.CLEAR -> Icons.Outlined.WbSunny
-                                WeatherCondition.CLOUDY -> Icons.Outlined.Cloud
-                                WeatherCondition.SNOWY -> Icons.Outlined.AcUnit
-                                WeatherCondition.RAINY -> Icons.Outlined.WaterDrop
-                            },
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onBackground,
-                            modifier = Modifier
-                                .size(24.dp)
-                                .padding(end = 6.dp)
-                        )
-                        Text(
-                            text = "${weather.temperature.toInt()}°",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Light,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
                     }
                 }
 
-                // Hydro widget (right side, clickable)
+                // Date + alarm row (below, centered)
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .padding(end = 16.dp)
-                        .then(
-                            if (uiState.hydro != null) Modifier.combinedClickable(onClick = onHydroClick)
-                            else Modifier
-                        )
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Water,
-                        contentDescription = null,
-                        tint = if (uiState.hydro != null)
-                            MaterialTheme.colorScheme.onBackground
-                        else
-                            MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f),
-                        modifier = Modifier
-                            .size(20.dp)
-                            .padding(end = 4.dp)
+                    Text(
+                        text = currentDate,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Light,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                     )
-                    if (uiState.hydro != null) {
+                    if (nextAlarmText.isNotEmpty()) {
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Icon(
+                            imageVector = Icons.Outlined.Alarm,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
                         Text(
-                            text = "${uiState.hydro.temperature.toInt()}°",
-                            fontSize = 20.sp,
+                            text = nextAlarmText,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Light,
-                            color = MaterialTheme.colorScheme.onBackground
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                         )
                     }
                 }
