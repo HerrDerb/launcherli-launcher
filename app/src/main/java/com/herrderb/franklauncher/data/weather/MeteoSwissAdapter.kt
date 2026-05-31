@@ -6,9 +6,8 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * MeteoSwiss adapter using SwissMetNet open data.
- * Fetches hourly "now" CSV for a given station ID.
- * Default station: "sma" (Zürich / Fluntern).
+ * MeteoSwiss adapter using SwissMetNet open data for current conditions
+ * and Open-Meteo MeteoSwiss ICON for +1h forecast.
  */
 class MeteoSwissAdapter : WeatherAdapter {
 
@@ -48,9 +47,55 @@ class MeteoSwissAdapter : WeatherAdapter {
                 else -> WeatherCondition.CLEAR
             }
 
-            WeatherData(temperature = temperature, condition = condition)
+            // Fetch +1h forecast from Open-Meteo MeteoSwiss ICON
+            val forecastCondition = fetchForecastCondition(config)
+
+            WeatherData(temperature = temperature, condition = condition, forecastCondition = forecastCondition)
         } catch (e: Exception) {
             null
         }
+    }
+
+    private fun fetchForecastCondition(config: WeatherConfig): WeatherCondition? {
+        return try {
+            val lat = config.latitude
+            val lon = config.longitude
+            if (lat == 0.0 && lon == 0.0) return null
+
+            val url = URL(
+                "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&hourly=weather_code&forecast_hours=2&models=icon_seamless"
+            )
+            val connection = url.openConnection() as HttpURLConnection
+            connection.setRequestProperty("User-Agent", "FrankLauncher/1.0")
+            connection.connectTimeout = 10000
+            connection.readTimeout = 10000
+
+            val json = connection.inputStream.bufferedReader().use { it.readText() }
+            connection.disconnect()
+
+            val pattern = """"weather_code"\s*:\s*\[([^\]]+)]""".toRegex()
+            val match = pattern.find(json) ?: return null
+            val values = match.groupValues[1].split(",").map { it.trim() }
+            val code = values.getOrNull(1)?.toIntOrNull() ?: return null
+            wmoCodeToCondition(code)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun wmoCodeToCondition(code: Int): WeatherCondition = when (code) {
+        0, 1 -> WeatherCondition.CLEAR
+        2, 3 -> WeatherCondition.CLOUDY
+        45, 48 -> WeatherCondition.CLOUDY
+        51, 53, 55 -> WeatherCondition.RAINY
+        56, 57 -> WeatherCondition.RAINY
+        61, 63, 65 -> WeatherCondition.RAINY
+        66, 67 -> WeatherCondition.RAINY
+        71, 73, 75 -> WeatherCondition.SNOWY
+        77 -> WeatherCondition.SNOWY
+        80, 81, 82 -> WeatherCondition.RAINY
+        85, 86 -> WeatherCondition.SNOWY
+        95, 96, 99 -> WeatherCondition.RAINY
+        else -> WeatherCondition.CLOUDY
     }
 }

@@ -5,11 +5,14 @@ package com.herrderb.franklauncher.data.weather
  */
 data class WeatherData(
     val temperature: Float,
-    val condition: WeatherCondition
+    val condition: WeatherCondition,
+    val forecastCondition: WeatherCondition? = null
 )
 
 enum class WeatherCondition {
-    CLEAR, CLOUDY, RAINY, SNOWY
+    CLEAR, CLOUDY, SNOWY, RAINY;
+
+    val rank: Int get() = ordinal
 }
 
 /**

@@ -113,7 +113,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val weather = if (locationResult.isInSwitzerland && locationResult.nearestStationId != null) {
             // Use MeteoSwiss in Switzerland
             val adapter = WeatherAdapterRegistry.getAdapter("meteoswiss") ?: return
-            val config = WeatherConfig(stationId = locationResult.nearestStationId)
+            val config = WeatherConfig(
+                stationId = locationResult.nearestStationId,
+                latitude = locationResult.latitude,
+                longitude = locationResult.longitude
+            )
             adapter.fetchWeather(config)
         } else if (locationResult.latitude != 0.0) {
             // Use Open-Meteo outside Switzerland

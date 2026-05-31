@@ -12,6 +12,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AcUnit
 import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material.icons.outlined.Info
@@ -169,12 +171,25 @@ fun HomeScreen(
                             .padding(start = 16.dp)
                             .combinedClickable(onClick = onWeatherClick)
                     ) {
+                        // Trend arrow based on +1h forecast
+                        weather.forecastCondition?.let { forecast ->
+                            val trend = forecast.rank - weather.condition.rank
+                            if (trend != 0) {
+                                Icon(
+                                    imageVector = if (trend < 0) Icons.Outlined.ArrowUpward
+                                        else Icons.Outlined.ArrowDownward,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
                         Icon(
                             imageVector = when (weather.condition) {
                                 WeatherCondition.CLEAR -> Icons.Outlined.WbSunny
                                 WeatherCondition.CLOUDY -> Icons.Outlined.Cloud
-                                WeatherCondition.RAINY -> Icons.Outlined.WaterDrop
                                 WeatherCondition.SNOWY -> Icons.Outlined.AcUnit
+                                WeatherCondition.RAINY -> Icons.Outlined.WaterDrop
                             },
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onBackground,

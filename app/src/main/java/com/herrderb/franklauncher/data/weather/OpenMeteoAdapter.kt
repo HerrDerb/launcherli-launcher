@@ -22,7 +22,7 @@ class OpenMeteoAdapter : WeatherAdapter {
             if (lat == 0.0 && lon == 0.0) return@withContext null
 
             val url = URL(
-                "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true"
+                "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true&hourly=weather_code&forecast_hours=2"
             )
             val connection = url.openConnection() as HttpURLConnection
             connection.setRequestProperty("User-Agent", "FrankLauncher/1.0")
@@ -34,10 +34,12 @@ class OpenMeteoAdapter : WeatherAdapter {
 
             val temperature = extractJsonFloat(json, "temperature") ?: return@withContext null
             val weatherCode = extractJsonInt(json, "weathercode") ?: 0
-
             val condition = wmoCodeToCondition(weatherCode)
 
-            WeatherData(temperature = temperature, condition = condition)
+            // Extract +1h forecast condition from hourly.weather_code array
+            val forecastCondition = extractHourlyWeatherCode(json, 1)?.let { wmoCodeToCondition(it) }
+
+            WeatherData(temperature = temperature, condition = condition, forecastCondition = forecastCondition)
         } catch (e: Exception) {
             null
         }
@@ -67,5 +69,12 @@ class OpenMeteoAdapter : WeatherAdapter {
     private fun extractJsonInt(json: String, key: String): Int? {
         val pattern = """"$key"\s*:\s*(\d+)""".toRegex()
         return pattern.find(json)?.groupValues?.get(1)?.toIntOrNull()
+    }
+
+    private fun extractHourlyWeatherCode(json: String, index: Int): Int? {
+        val pattern = """"weather_code"\s*:\s*\[([^\]]+)]""".toRegex()
+        val match = pattern.find(json) ?: return null
+        val values = match.groupValues[1].split(",").map { it.trim() }
+        return values.getOrNull(index)?.toIntOrNull()
     }
 }
