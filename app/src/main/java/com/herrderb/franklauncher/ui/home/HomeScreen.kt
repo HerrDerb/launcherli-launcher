@@ -221,7 +221,7 @@ fun HomeScreen(
                         )
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.WaterDrop,
+                        imageVector = Icons.Outlined.Water,
                         contentDescription = null,
                         tint = if (uiState.hydro != null)
                             MaterialTheme.colorScheme.onBackground
