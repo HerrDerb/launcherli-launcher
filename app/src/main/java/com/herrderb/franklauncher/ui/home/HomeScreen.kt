@@ -102,14 +102,17 @@ fun HomeScreen(
                 val dateFormatter = SimpleDateFormat("EEE. d MMM", Locale.getDefault())
                 val alarmFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
                 while (true) {
-                    val now = Date()
-                    currentTime = timeFormatter.format(now)
-                    currentDate = dateFormatter.format(now)
+                    val now = System.currentTimeMillis()
+                    val date = Date(now)
+                    currentTime = timeFormatter.format(date)
+                    currentDate = dateFormatter.format(date)
                     val nextAlarm = alarmManager.nextAlarmClock
                     nextAlarmText = if (nextAlarm != null) {
                         alarmFormatter.format(Date(nextAlarm.triggerTime))
                     } else ""
-                    delay(1000L)
+                    // Sleep exactly until the next minute boundary
+                    val msUntilNextMinute = 60_000L - (now % 60_000L)
+                    delay(msUntilNextMinute)
                 }
             }
             Box(
