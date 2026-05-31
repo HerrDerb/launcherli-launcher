@@ -317,7 +317,7 @@ fun HomeScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .animateItemPlacement()
+                            .animateItem()
                     ) {
                         // Remove indicator behind the item
                         if (!uiState.homescreenLocked && swipeOffsetX < 0f) {
