@@ -23,14 +23,14 @@ data class LocationResult(
  * Finds the nearest MeteoSwiss SwissMetNet station based on device location.
  * Also determines whether the device is in Switzerland.
  */
-class StationLocator(private val context: Context) {
+open class StationLocator(private val context: Context) {
 
     data class Station(val id: String, val lat: Double, val lon: Double, val name: String)
 
     /**
      * Get location info: coordinates, whether in Switzerland, and nearest station if applicable.
      */
-    suspend fun getLocationResult(): LocationResult = withContext(Dispatchers.IO) {
+    open suspend fun getLocationResult(): LocationResult = withContext(Dispatchers.IO) {
         val location = getLastKnownLocation()
             ?: return@withContext LocationResult(0.0, 0.0, false, null)
 

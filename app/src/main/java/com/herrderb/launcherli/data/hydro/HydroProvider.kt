@@ -9,7 +9,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.math.*
 
-class HydroProvider(private val context: Context) {
+open class HydroProvider(private val context: Context) {
 
     companion object {
         private const val GEOJSON_URL =
@@ -22,7 +22,7 @@ class HydroProvider(private val context: Context) {
         private const val CACHE_MAX_AGE_MS = 30L * 24 * 60 * 60 * 1000 // 30 days
     }
 
-    suspend fun fetchNearestStation(latitude: Double, longitude: Double): HydroData? =
+    open suspend fun fetchNearestStation(latitude: Double, longitude: Double): HydroData? =
         withContext(Dispatchers.IO) {
             try {
                 val station = findNearestStation(latitude, longitude) ?: return@withContext null

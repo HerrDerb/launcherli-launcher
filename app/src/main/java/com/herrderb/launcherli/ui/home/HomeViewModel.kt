@@ -8,19 +8,18 @@ import com.herrderb.launcherli.data.AppRepository
 import com.herrderb.launcherli.data.SettingsRepository
 import com.herrderb.launcherli.data.weather.WeatherAdapterRegistry
 import com.herrderb.launcherli.data.weather.WeatherConfig
-import com.herrderb.launcherli.data.weather.WeatherData
 import com.herrderb.launcherli.data.weather.StationLocator
-import com.herrderb.launcherli.data.hydro.HydroData
 import com.herrderb.launcherli.data.hydro.HydroProvider
 import com.herrderb.launcherli.ui.theme.ThemeMode
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 
 data class HomeUiState(
     val favoriteApps: List<AppInfo> = emptyList(),
@@ -37,19 +36,35 @@ data class HomeUiState(
     val hydro: HydroData? = null
 )
 
-class HomeViewModel(application: Application) : AndroidViewModel(application) {
+/**
+ * Dependencies for HomeViewModel, extracted for testability.
+ */
+open class HomeViewModelDeps(
+    val settingsRepository: SettingsRepository,
+    val appRepository: AppRepository,
+    val stationLocator: StationLocator,
+    val hydroProvider: HydroProvider,
+    val weatherAdapterRegistry: WeatherAdapterRegistry = WeatherAdapterRegistry,
+    val processLifecycleOwner: LifecycleOwner = ProcessLifecycleOwner.get(),
+    val clock: () -> Long = { System.currentTimeMillis() }
+)
 
-    val settingsRepository = SettingsRepository(application)
-    private val appRepository = AppRepository(application)
-    private val stationLocator = StationLocator(application)
-    private val hydroProvider = HydroProvider(application)
+class HomeViewModel(application: Application, private val deps: HomeViewModelDeps? = null) : AndroidViewModel(application) {
+
+    val settingsRepository: SettingsRepository = deps?.settingsRepository ?: SettingsRepository(application)
+    private val appRepository: AppRepository = deps?.appRepository ?: AppRepository(application)
+    private val stationLocator: StationLocator = deps?.stationLocator ?: StationLocator(application)
+    private val hydroProvider: HydroProvider = deps?.hydroProvider ?: HydroProvider(application)
+    private val weatherAdapterRegistry: WeatherAdapterRegistry = deps?.weatherAdapterRegistry ?: WeatherAdapterRegistry
+    private val clock: () -> Long = deps?.clock ?: { System.currentTimeMillis() }
+    private val processLifecycleOwner: LifecycleOwner = deps?.processLifecycleOwner ?: ProcessLifecycleOwner.get()
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
-    private val refreshInterval = 5 * 60 * 1000L
-    private var lastWeatherRefresh = 0L
-    private var lastHydroRefresh = 0L
+    internal val refreshInterval = 5 * 60 * 1000L
+    internal var lastWeatherRefresh = 0L
+    internal var lastHydroRefresh = 0L
 
     init {
         viewModelScope.launch {
@@ -99,7 +114,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             while (true) {
                 refreshWeather()
-                lastWeatherRefresh = System.currentTimeMillis()
+                lastWeatherRefresh = clock()
                 delay(refreshInterval)
             }
         }
@@ -108,7 +123,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             while (true) {
                 refreshHydro()
-                lastHydroRefresh = System.currentTimeMillis()
+                lastHydroRefresh = clock()
                 delay(refreshInterval)
             }
         }
@@ -116,26 +131,26 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         // On resume, refresh immediately if interval has elapsed
         val lifecycleObserver = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                val now = System.currentTimeMillis()
+                val now = clock()
                 if (now - lastWeatherRefresh >= refreshInterval) {
-                    viewModelScope.launch { refreshWeather(); lastWeatherRefresh = System.currentTimeMillis() }
+                    viewModelScope.launch { refreshWeather(); lastWeatherRefresh = clock() }
                 }
                 if (now - lastHydroRefresh >= refreshInterval) {
-                    viewModelScope.launch { refreshHydro(); lastHydroRefresh = System.currentTimeMillis() }
+                    viewModelScope.launch { refreshHydro(); lastHydroRefresh = clock() }
                 }
             }
         }
-        ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
+        processLifecycleOwner.lifecycle.addObserver(lifecycleObserver)
     }
 
-    private suspend fun refreshWeather() {
+    internal suspend fun refreshWeather() {
         val locationResult = stationLocator.getLocationResult()
 
         _uiState.update { it.copy(isInSwitzerland = locationResult.isInSwitzerland) }
 
         val weather = if (locationResult.isInSwitzerland && locationResult.nearestStationId != null) {
             // Use MeteoSwiss in Switzerland
-            val adapter = WeatherAdapterRegistry.getAdapter("meteoswiss") ?: return
+            val adapter = weatherAdapterRegistry.getAdapter("meteoswiss") ?: return
             val config = WeatherConfig(
                 stationId = locationResult.nearestStationId,
                 latitude = locationResult.latitude,
@@ -144,7 +159,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             adapter.fetchWeather(config)
         } else if (locationResult.latitude != 0.0) {
             // Use Open-Meteo outside Switzerland
-            val adapter = WeatherAdapterRegistry.getAdapter("openmeteo") ?: return
+            val adapter = weatherAdapterRegistry.getAdapter("openmeteo") ?: return
             val config = WeatherConfig(
                 latitude = locationResult.latitude,
                 longitude = locationResult.longitude
@@ -157,7 +172,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private suspend fun refreshHydro() {
+    internal suspend fun refreshHydro() {
         val locationResult = stationLocator.getLocationResult()
         if (locationResult.isInSwitzerland && locationResult.latitude != 0.0) {
             val hydro = hydroProvider.fetchNearestStation(
