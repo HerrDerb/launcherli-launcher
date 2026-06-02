@@ -149,13 +149,16 @@ class MainActivity : ComponentActivity() {
                                 onToggleLock = { viewModel.toggleHomescreenLock() },
                                 onOpenSettings = { currentScreen = Screen.SETTINGS },
                                 onWeatherClick = {
-                                    val primaryPkg = if (uiState.isInSwitzerland) uiState.weatherApp else uiState.weatherAppInternational
-                                    val fallbackPkg = if (uiState.isInSwitzerland) uiState.weatherAppInternational else uiState.weatherApp
-                                    val intent = sequenceOf(primaryPkg, fallbackPkg)
-                                        .filter { it.isNotBlank() }
-                                        .mapNotNull { packageManager.getLaunchIntentForPackage(it) }
-                                        .firstOrNull()
-                                    if (intent != null) startActivity(intent)
+                                    val meteoSwissPkg = uiState.allApps
+                                        .firstOrNull { it.label.contains("meteoswiss", ignoreCase = true) }
+                                        ?.packageName
+                                    val intent = meteoSwissPkg?.let {
+                                        packageManager.getLaunchIntentForPackage(it)
+                                    } ?: android.content.Intent(
+                                        android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse("https://www.meteoswiss.admin.ch/")
+                                    )
+                                    try { startActivity(intent) } catch (_: Exception) {}
                                 },
                                 onHydroClick = {
                                     uiState.hydro?.let { hydro ->
@@ -176,16 +179,12 @@ class MainActivity : ComponentActivity() {
                                 favoriteTextSize = uiState.favoriteTextSize,
                                 favoriteAlignment = uiState.favoriteAlignment,
                                 showDrawerIcons = uiState.showDrawerIcons,
-                                weatherApp = uiState.weatherApp,
-                                weatherAppInternational = uiState.weatherAppInternational,
                                 showWidgetLabels = uiState.showWidgetLabels,
                                 allApps = uiState.allApps,
                                 onThemeChange = { viewModel.setThemeMode(it) },
                                 onFavoriteTextSizeChange = { viewModel.setFavoriteTextSize(it) },
                                 onFavoriteAlignmentChange = { viewModel.setFavoriteAlignment(it) },
                                 onShowDrawerIconsChange = { viewModel.setShowDrawerIcons(it) },
-                                onWeatherAppChange = { viewModel.setWeatherApp(it) },
-                                onWeatherAppInternationalChange = { viewModel.setWeatherAppInternational(it) },
                                 onShowWidgetLabelsChange = { viewModel.setShowWidgetLabels(it) },
                                 onBack = { currentScreen = Screen.HOME },
                                 modifier = Modifier.background(

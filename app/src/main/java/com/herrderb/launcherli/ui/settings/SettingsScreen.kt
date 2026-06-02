@@ -22,16 +22,12 @@ fun SettingsScreen(
     favoriteTextSize: Float,
     favoriteAlignment: String,
     showDrawerIcons: Boolean,
-    weatherApp: String,
-    weatherAppInternational: String,
     showWidgetLabels: Boolean,
     allApps: List<com.herrderb.launcherli.data.AppInfo>,
     onThemeChange: (ThemeMode) -> Unit,
     onFavoriteTextSizeChange: (Float) -> Unit,
     onFavoriteAlignmentChange: (String) -> Unit,
     onShowDrawerIconsChange: (Boolean) -> Unit,
-    onWeatherAppChange: (String) -> Unit,
-    onWeatherAppInternationalChange: (String) -> Unit,
     onShowWidgetLabelsChange: (Boolean) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -154,114 +150,6 @@ fun SettingsScreen(
 
         // --- Weather ---
         SectionHeader("Weather")
-
-        var showAppPickerCh by remember { mutableStateOf(false) }
-        val selectedAppNameCh = allApps.find { it.packageName == weatherApp }?.label ?: "Not set"
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .combinedClickable(onClick = { showAppPickerCh = true }),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Weather app (Switzerland)",
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-            )
-            Text(
-                text = selectedAppNameCh,
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-        }
-
-        if (showAppPickerCh) {
-            AlertDialog(
-                onDismissRequest = { showAppPickerCh = false },
-                title = { Text("Select weather app (Switzerland)") },
-                text = {
-                    LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
-                        items(allApps.size) { index ->
-                            val app = allApps[index]
-                            TextButton(
-                                onClick = {
-                                    onWeatherAppChange(app.packageName)
-                                    showAppPickerCh = false
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = app.label,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    color = if (app.packageName == weatherApp)
-                                        MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onBackground
-                                )
-                            }
-                        }
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = { showAppPickerCh = false }) { Text("Cancel") }
-                }
-            )
-        }
-
-        var showAppPickerIntl by remember { mutableStateOf(false) }
-        val selectedAppNameIntl = allApps.find { it.packageName == weatherAppInternational }?.label ?: "Not set"
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .combinedClickable(onClick = { showAppPickerIntl = true }),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Weather app (International)",
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-            )
-            Text(
-                text = selectedAppNameIntl,
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-        }
-
-        if (showAppPickerIntl) {
-            AlertDialog(
-                onDismissRequest = { showAppPickerIntl = false },
-                title = { Text("Select weather app (International)") },
-                text = {
-                    LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
-                        items(allApps.size) { index ->
-                            val app = allApps[index]
-                            TextButton(
-                                onClick = {
-                                    onWeatherAppInternationalChange(app.packageName)
-                                    showAppPickerIntl = false
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = app.label,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    color = if (app.packageName == weatherAppInternational)
-                                        MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onBackground
-                                )
-                            }
-                        }
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = { showAppPickerIntl = false }) { Text("Cancel") }
-                }
-            )
-        }
 
         Row(
             modifier = Modifier.fillMaxWidth(),

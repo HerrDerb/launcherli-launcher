@@ -17,9 +17,11 @@ class MeteoSwissAdapter : WeatherAdapter {
     override suspend fun fetchWeather(config: WeatherConfig): WeatherData? = withContext(Dispatchers.IO) {
         try {
             val station = config.stationId.ifBlank { "sma" }.lowercase()
-            val url = URL("https://data.geo.admin.ch/ch.meteoschweiz.ogd-smn/$station/ogd-smn_${station}_h_now.csv")
+            val url = URL("https://data.geo.admin.ch/ch.meteoschweiz.ogd-smn/$station/ogd-smn_${station}_t_now.csv")
             val connection = url.openConnection() as HttpURLConnection
+            connection.useCaches = false
             connection.setRequestProperty("User-Agent", "Launcherli/1.0")
+            connection.setRequestProperty("Cache-Control", "no-cache")
             connection.connectTimeout = 10000
             connection.readTimeout = 10000
 
@@ -30,11 +32,16 @@ class MeteoSwissAdapter : WeatherAdapter {
             if (lines.size < 2) return@withContext null
 
             val header = lines[0].split(";")
-            val lastLine = lines.last().split(";")
+            // Pick last row that has a non-empty temperature value
+            val tempIdx = header.indexOf("tre200s0")
+            val cloudIdx = header.indexOf("wcc006s0")
+            val rainIdx = header.indexOf("rre150z0")
+            if (tempIdx < 0) return@withContext null
 
-            val tempIdx = header.indexOf("tre200h0")
-            val cloudIdx = header.indexOf("wcc006h0")
-            val rainIdx = header.indexOf("rre150h0")
+            val lastLine = lines.asReversed().drop(0).firstOrNull { row ->
+                val cols = row.split(";")
+                cols.getOrNull(tempIdx)?.toFloatOrNull() != null
+            }?.split(";") ?: return@withContext null
 
             val temperature = lastLine.getOrNull(tempIdx)?.toFloatOrNull() ?: return@withContext null
             val cloudCover = lastLine.getOrNull(cloudIdx)?.toFloatOrNull() ?: 0f
@@ -66,7 +73,9 @@ class MeteoSwissAdapter : WeatherAdapter {
                 "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&hourly=weather_code&forecast_hours=2&models=icon_seamless"
             )
             val connection = url.openConnection() as HttpURLConnection
+            connection.useCaches = false
             connection.setRequestProperty("User-Agent", "Launcherli/1.0")
+            connection.setRequestProperty("Cache-Control", "no-cache")
             connection.connectTimeout = 10000
             connection.readTimeout = 10000
 

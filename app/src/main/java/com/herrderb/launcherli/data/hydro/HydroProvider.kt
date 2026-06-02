@@ -78,7 +78,9 @@ class HydroProvider(private val context: Context) {
         return try {
             val url = String.format(STATION_DATA_URL, stationKey)
             val conn = URL(url).openConnection() as HttpURLConnection
+            conn.useCaches = false
             conn.setRequestProperty("User-Agent", "Launcherli/1.0")
+            conn.setRequestProperty("Cache-Control", "no-cache")
             conn.connectTimeout = 10000
             conn.readTimeout = 10000
 

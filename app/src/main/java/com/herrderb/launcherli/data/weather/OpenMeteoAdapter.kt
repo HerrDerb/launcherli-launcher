@@ -25,7 +25,9 @@ class OpenMeteoAdapter : WeatherAdapter {
                 "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true&hourly=weather_code&forecast_hours=2"
             )
             val connection = url.openConnection() as HttpURLConnection
+            connection.useCaches = false
             connection.setRequestProperty("User-Agent", "Launcherli/1.0")
+            connection.setRequestProperty("Cache-Control", "no-cache")
             connection.connectTimeout = 10000
             connection.readTimeout = 10000
 

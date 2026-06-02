@@ -37,8 +37,6 @@ data class HomeUiState(
     val favoriteTextSize: Float = 18f,
     val favoriteAlignment: String = "left",
     val showDrawerIcons: Boolean = false,
-    val weatherApp: String = "",
-    val weatherAppInternational: String = "",
     val isInSwitzerland: Boolean = true,
     val weather: WeatherData? = null,
     val hydro: HydroData? = null,
@@ -70,9 +68,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 settingsRepository.homescreenLocked,
                 settingsRepository.favoriteTextSize,
                 settingsRepository.favoriteAlignment,
-                settingsRepository.showDrawerIcons,
-                settingsRepository.weatherApp,
-                settingsRepository.weatherAppInternational
+                settingsRepository.showDrawerIcons
             ) { params ->
                 val theme = params[0] as ThemeMode
                 @Suppress("UNCHECKED_CAST")
@@ -81,8 +77,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 val textSize = params[3] as Float
                 val alignment = params[4] as String
                 val drawerIcons = params[5] as Boolean
-                val weatherAppPkg = params[6] as String
-                val weatherAppIntlPkg = params[7] as String
 
                 val allApps = _uiState.value.allApps
                 val favApps = favPackages.mapNotNull { pkg ->
@@ -95,9 +89,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     allApps = allApps,
                     favoriteTextSize = textSize,
                     favoriteAlignment = alignment,
-                    showDrawerIcons = drawerIcons,
-                    weatherApp = weatherAppPkg,
-                    weatherAppInternational = weatherAppIntlPkg
+                    showDrawerIcons = drawerIcons
                 )
             }
 
@@ -222,18 +214,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun setShowDrawerIcons(show: Boolean) {
         viewModelScope.launch {
             settingsRepository.setShowDrawerIcons(show)
-        }
-    }
-
-    fun setWeatherApp(packageName: String) {
-        viewModelScope.launch {
-            settingsRepository.setWeatherApp(packageName)
-        }
-    }
-
-    fun setWeatherAppInternational(packageName: String) {
-        viewModelScope.launch {
-            settingsRepository.setWeatherAppInternational(packageName)
         }
     }
 

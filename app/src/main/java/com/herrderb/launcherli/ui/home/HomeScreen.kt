@@ -5,6 +5,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import kotlin.math.roundToInt
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -196,7 +197,7 @@ fun HomeScreen(
                                             .padding(end = 6.dp)
                                     )
                                     Text(
-                                        text = "${weather.temperature.toInt()}°",
+                                        text = "${weather.temperature.roundToInt()}°",
                                         fontSize = 20.sp,
                                         fontWeight = FontWeight.Light,
                                         color = MaterialTheme.colorScheme.onBackground
@@ -235,49 +236,43 @@ fun HomeScreen(
                         modifier = Modifier.weight(1f).alignBy(LastBaseline),
                         contentAlignment = Alignment.CenterStart
                     ) {
-                        Column(horizontalAlignment = Alignment.Start) {
-                            val hydroLabel = uiState.hydro?.stationLabel?.takeIf { it.isNotBlank() }
-                            if (uiState.showWidgetLabels && hydroLabel != null) {
-                                hydroLabel.split("-")
-                                    .map { it.trim() }
-                                    .filter { it.isNotBlank() }
-                                    .forEach { line ->
-                                        Text(
-                                            text = line,
-                                            fontSize = 11.sp,
-                                            lineHeight = 13.sp,
-                                            fontWeight = FontWeight.Light,
-                                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
-                                            maxLines = 1,
-                                            modifier = Modifier
-                                                .padding(start = 12.dp)
-                                                .basicMarquee(velocity = 20.dp)
-                                        )
-                                    }
-                            }
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .padding(start = 12.dp)
-                                    .then(
-                                        if (uiState.hydro != null) Modifier.clickable(onClick = onHydroClick)
-                                        else Modifier
-                                    )
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Water,
-                                    contentDescription = null,
-                                    tint = if (uiState.hydro != null)
-                                        MaterialTheme.colorScheme.onBackground
-                                    else
-                                        MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f),
+                        uiState.hydro?.let { hydro ->
+                            Column(horizontalAlignment = Alignment.Start) {
+                                val hydroLabel = hydro.stationLabel.takeIf { it.isNotBlank() }
+                                if (uiState.showWidgetLabels && hydroLabel != null) {
+                                    hydroLabel.split("-")
+                                        .map { it.trim() }
+                                        .filter { it.isNotBlank() }
+                                        .forEach { line ->
+                                            Text(
+                                                text = line,
+                                                fontSize = 11.sp,
+                                                lineHeight = 13.sp,
+                                                fontWeight = FontWeight.Light,
+                                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                                                maxLines = 1,
+                                                modifier = Modifier
+                                                    .padding(start = 12.dp)
+                                                    .basicMarquee(velocity = 20.dp)
+                                            )
+                                        }
+                                }
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier
-                                        .size(20.dp)
-                                        .padding(end = 4.dp)
-                                )
-                                if (uiState.hydro != null) {
+                                        .padding(start = 12.dp)
+                                        .clickable(onClick = onHydroClick)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Water,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onBackground,
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .padding(end = 4.dp)
+                                    )
                                     Text(
-                                        text = "${"%.1f".format(uiState.hydro.temperature)}°",
+                                        text = "${"%.1f".format(hydro.temperature)}°",
                                         fontSize = 20.sp,
                                         fontWeight = FontWeight.Light,
                                         color = MaterialTheme.colorScheme.onBackground
@@ -306,13 +301,6 @@ fun HomeScreen(
                         with(density) { (dateRowStartX + dateRowWidth - visibleClockRight).coerceAtLeast(0f).toDp() }
                     } else 0.dp
 
-                    Spacer(modifier = Modifier.width(datePad))
-                    Text(
-                        text = currentDate,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Light,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                    )
                     Spacer(modifier = Modifier.weight(1f))
                     if (nextAlarmText.isNotEmpty()) {
                         Icon(
@@ -328,7 +316,14 @@ fun HomeScreen(
                             fontWeight = FontWeight.Light,
                             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                         )
+                        Spacer(modifier = Modifier.width(12.dp))
                     }
+                    Text(
+                        text = currentDate,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Light,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                    )
                     Spacer(modifier = Modifier.width(alarmEndPad))
                 }
             }
