@@ -6,7 +6,8 @@ package com.herrderb.launcherli.data.weather
 data class WeatherData(
     val temperature: Float,
     val condition: WeatherCondition,
-    val forecastCondition: WeatherCondition? = null
+    val forecastCondition: WeatherCondition? = null,
+    val stationName: String? = null
 )
 
 enum class WeatherCondition {

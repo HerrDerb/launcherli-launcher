@@ -16,7 +16,9 @@ data class LocationResult(
     val latitude: Double,
     val longitude: Double,
     val isInSwitzerland: Boolean,
-    val nearestStationId: String?
+    val nearestStationId: String?,
+    val nearestStationName: String? = null,
+    val locationName: String? = null
 )
 
 /**
@@ -34,20 +36,22 @@ class StationLocator(private val context: Context) {
         val location = getLastKnownLocation()
             ?: return@withContext LocationResult(0.0, 0.0, false, null)
 
-        val inSwitzerland = checkIfInSwitzerland(location.first, location.second)
+        val (inSwitzerland, locationName) = getLocationInfo(location.first, location.second)
 
-        val stationId = if (inSwitzerland) {
+        val nearest = if (inSwitzerland) {
             val stations = fetchStationList()
             stations?.minByOrNull { station ->
                 haversineDistance(location.first, location.second, station.lat, station.lon)
-            }?.id ?: "sma"
+            }
         } else null
 
         LocationResult(
             latitude = location.first,
             longitude = location.second,
             isInSwitzerland = inSwitzerland,
-            nearestStationId = stationId
+            nearestStationId = nearest?.id ?: if (inSwitzerland) "sma" else null,
+            nearestStationName = nearest?.name,
+            locationName = locationName
         )
     }
 
@@ -57,14 +61,16 @@ class StationLocator(private val context: Context) {
         return result.nearestStationId ?: "sma"
     }
 
-    private fun checkIfInSwitzerland(lat: Double, lon: Double): Boolean {
+    private fun getLocationInfo(lat: Double, lon: Double): Pair<Boolean, String?> {
         return try {
             @Suppress("DEPRECATION")
             val addresses = Geocoder(context).getFromLocation(lat, lon, 1)
-            addresses?.firstOrNull()?.countryCode == "CH"
+            val addr = addresses?.firstOrNull()
+            val inSwitzerland = addr?.countryCode == "CH"
+            val locality = addr?.locality ?: addr?.subAdminArea ?: addr?.adminArea
+            Pair(inSwitzerland, if (!inSwitzerland) locality else null)
         } catch (_: Exception) {
-            // Fallback to bounding box
-            lat in 45.8..47.8 && lon in 5.9..10.5
+            Pair(lat in 45.8..47.8 && lon in 5.9..10.5, null)
         }
     }
 
@@ -124,8 +130,9 @@ class StationLocator(private val context: Context) {
             val id = idMatch.groupValues[1]
             val lon = coordMatch.groupValues[1].toDoubleOrNull() ?: continue
             val lat = coordMatch.groupValues[2].toDoubleOrNull() ?: continue
+            val title = """"title"\s*:\s*"([^"]+)"""".toRegex().find(block)?.groupValues?.get(1)
 
-            stations.add(Station(id = id, lat = lat, lon = lon, name = id.uppercase()))
+            stations.add(Station(id = id, lat = lat, lon = lon, name = title ?: id.uppercase()))
         }
         return stations
     }

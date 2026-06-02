@@ -178,6 +178,7 @@ class MainActivity : ComponentActivity() {
                                 showDrawerIcons = uiState.showDrawerIcons,
                                 weatherApp = uiState.weatherApp,
                                 weatherAppInternational = uiState.weatherAppInternational,
+                                showWidgetLabels = uiState.showWidgetLabels,
                                 allApps = uiState.allApps,
                                 onThemeChange = { viewModel.setThemeMode(it) },
                                 onFavoriteTextSizeChange = { viewModel.setFavoriteTextSize(it) },
@@ -185,6 +186,7 @@ class MainActivity : ComponentActivity() {
                                 onShowDrawerIconsChange = { viewModel.setShowDrawerIcons(it) },
                                 onWeatherAppChange = { viewModel.setWeatherApp(it) },
                                 onWeatherAppInternationalChange = { viewModel.setWeatherAppInternational(it) },
+                                onShowWidgetLabelsChange = { viewModel.setShowWidgetLabels(it) },
                                 onBack = { currentScreen = Screen.HOME },
                                 modifier = Modifier.background(
                                     MaterialTheme.colorScheme.background.copy(alpha = 0.95f)

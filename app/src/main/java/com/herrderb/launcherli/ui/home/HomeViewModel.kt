@@ -38,7 +38,8 @@ data class HomeUiState(
     val weatherAppInternational: String = "",
     val isInSwitzerland: Boolean = true,
     val weather: WeatherData? = null,
-    val hydro: HydroData? = null
+    val hydro: HydroData? = null,
+    val showWidgetLabels: Boolean = false
 )
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
@@ -60,7 +61,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             loadApps()
 
-            combine(
+            val coreSettings = combine(
                 settingsRepository.themeMode,
                 settingsRepository.favoriteApps,
                 settingsRepository.homescreenLocked,
@@ -95,6 +96,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     weatherApp = weatherAppPkg,
                     weatherAppInternational = weatherAppIntlPkg
                 )
+            }
+
+            combine(coreSettings, settingsRepository.showWidgetLabels) { state, showLabels ->
+                state.copy(showWidgetLabels = showLabels)
             }.collect { state ->
                 _uiState.value = state
             }
@@ -139,23 +144,22 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private suspend fun refreshWeather(locationResult: LocationResult) {
+        val stationLabel = if (locationResult.isInSwitzerland) locationResult.nearestStationName else locationResult.locationName
         val weather = if (locationResult.isInSwitzerland && locationResult.nearestStationId != null) {
-            // Use MeteoSwiss in Switzerland
             val adapter = WeatherAdapterRegistry.getAdapter("meteoswiss") ?: return
             val config = WeatherConfig(
                 stationId = locationResult.nearestStationId,
                 latitude = locationResult.latitude,
                 longitude = locationResult.longitude
             )
-            adapter.fetchWeather(config)
+            adapter.fetchWeather(config)?.copy(stationName = stationLabel)
         } else if (locationResult.latitude != 0.0) {
-            // Use Open-Meteo outside Switzerland
             val adapter = WeatherAdapterRegistry.getAdapter("openmeteo") ?: return
             val config = WeatherConfig(
                 latitude = locationResult.latitude,
                 longitude = locationResult.longitude
             )
-            adapter.fetchWeather(config)
+            adapter.fetchWeather(config)?.copy(stationName = stationLabel)
         } else null
 
         if (weather != null) {
@@ -224,6 +228,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun setWeatherAppInternational(packageName: String) {
         viewModelScope.launch {
             settingsRepository.setWeatherAppInternational(packageName)
+        }
+    }
+
+    fun setShowWidgetLabels(show: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setShowWidgetLabels(show)
         }
     }
 

@@ -2,6 +2,7 @@ package com.herrderb.launcherli.ui.home
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -136,44 +137,65 @@ fun HomeScreen(
                         contentAlignment = Alignment.CenterEnd
                     ) {
                         uiState.weather?.let { weather ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .padding(end = 12.dp)
-                                    .clickable(onClick = onWeatherClick)
-                            ) {
-                                // Trend arrow based on +1h forecast
-                                weather.forecastCondition?.let { forecast ->
-                                    val trend = forecast.rank - weather.condition.rank
-                                    if (trend != 0) {
-                                        Icon(
-                                            imageVector = if (trend < 0) Icons.Outlined.ArrowUpward
-                                                else Icons.Outlined.ArrowDownward,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                    }
+                            Column(horizontalAlignment = Alignment.Start) {
+                                if (uiState.showWidgetLabels && weather.stationName != null) {
+                                    val cleaned = weather.stationName
+                                        .replace(Regex("""\s*\([^)]+\)\s*$"""), "").trim()
+                                    cleaned.split("/")
+                                        .map { it.trim() }
+                                        .filter { it.isNotBlank() }
+                                        .forEach { line ->
+                                            Text(
+                                                text = line,
+                                                fontSize = 11.sp,
+                                                lineHeight = 13.sp,
+                                                fontWeight = FontWeight.Light,
+                                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                                                maxLines = 1,
+                                                modifier = Modifier
+                                                    .padding(end = 12.dp)
+                                                    .basicMarquee(velocity = 20.dp)
+                                            )
+                                        }
                                 }
-                                Icon(
-                                    imageVector = when (weather.condition) {
-                                        WeatherCondition.CLEAR -> Icons.Outlined.WbSunny
-                                        WeatherCondition.CLOUDY -> Icons.Outlined.Cloud
-                                        WeatherCondition.SNOWY -> Icons.Outlined.AcUnit
-                                        WeatherCondition.RAINY -> Icons.Outlined.WaterDrop
-                                    },
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onBackground,
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier
-                                        .size(24.dp)
-                                        .padding(end = 6.dp)
-                                )
-                                Text(
-                                    text = "${weather.temperature.toInt()}°",
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Light,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                )
+                                        .padding(end = 12.dp)
+                                        .clickable(onClick = onWeatherClick)
+                                ) {
+                                    weather.forecastCondition?.let { forecast ->
+                                        val trend = forecast.rank - weather.condition.rank
+                                        if (trend != 0) {
+                                            Icon(
+                                                imageVector = if (trend < 0) Icons.Outlined.ArrowUpward
+                                                    else Icons.Outlined.ArrowDownward,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                    }
+                                    Icon(
+                                        imageVector = when (weather.condition) {
+                                            WeatherCondition.CLEAR -> Icons.Outlined.WbSunny
+                                            WeatherCondition.CLOUDY -> Icons.Outlined.Cloud
+                                            WeatherCondition.SNOWY -> Icons.Outlined.AcUnit
+                                            WeatherCondition.RAINY -> Icons.Outlined.WaterDrop
+                                        },
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onBackground,
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .padding(end = 6.dp)
+                                    )
+                                    Text(
+                                        text = "${weather.temperature.toInt()}°",
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Light,
+                                        color = MaterialTheme.colorScheme.onBackground
+                                    )
+                                }
                             }
                         }
                     }
@@ -200,33 +222,54 @@ fun HomeScreen(
                         modifier = Modifier.weight(1f).alignBy(LastBaseline),
                         contentAlignment = Alignment.CenterStart
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .padding(start = 12.dp)
-                                .then(
-                                    if (uiState.hydro != null) Modifier.clickable(onClick = onHydroClick)
-                                    else Modifier
-                                )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Water,
-                                contentDescription = null,
-                                tint = if (uiState.hydro != null)
-                                    MaterialTheme.colorScheme.onBackground
-                                else
-                                    MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f),
+                        Column(horizontalAlignment = Alignment.Start) {
+                            val hydroLabel = uiState.hydro?.stationLabel?.takeIf { it.isNotBlank() }
+                            if (uiState.showWidgetLabels && hydroLabel != null) {
+                                hydroLabel.split("-")
+                                    .map { it.trim() }
+                                    .filter { it.isNotBlank() }
+                                    .forEach { line ->
+                                        Text(
+                                            text = line,
+                                            fontSize = 11.sp,
+                                            lineHeight = 13.sp,
+                                            fontWeight = FontWeight.Light,
+                                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                                            maxLines = 1,
+                                            modifier = Modifier
+                                                .padding(start = 12.dp)
+                                                .basicMarquee(velocity = 20.dp)
+                                        )
+                                    }
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
-                                    .size(20.dp)
-                                    .padding(end = 4.dp)
-                            )
-                            if (uiState.hydro != null) {
-                                Text(
-                                    text = "${"%.1f".format(uiState.hydro.temperature)}°",
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Light,
-                                    color = MaterialTheme.colorScheme.onBackground
+                                    .padding(start = 12.dp)
+                                    .then(
+                                        if (uiState.hydro != null) Modifier.clickable(onClick = onHydroClick)
+                                        else Modifier
+                                    )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Water,
+                                    contentDescription = null,
+                                    tint = if (uiState.hydro != null)
+                                        MaterialTheme.colorScheme.onBackground
+                                    else
+                                        MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f),
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .padding(end = 4.dp)
                                 )
+                                if (uiState.hydro != null) {
+                                    Text(
+                                        text = "${"%.1f".format(uiState.hydro.temperature)}°",
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Light,
+                                        color = MaterialTheme.colorScheme.onBackground
+                                    )
+                                }
                             }
                         }
                     }

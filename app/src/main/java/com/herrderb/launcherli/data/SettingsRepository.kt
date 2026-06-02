@@ -21,6 +21,7 @@ class SettingsRepository(private val context: Context) {
         private val SHOW_DRAWER_ICONS = booleanPreferencesKey("show_drawer_icons")
         private val WEATHER_APP = stringPreferencesKey("weather_app")
         private val WEATHER_APP_INTERNATIONAL = stringPreferencesKey("weather_app_international")
+        private val SHOW_WIDGET_LABELS = booleanPreferencesKey("show_widget_labels")
     }
 
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
@@ -59,6 +60,10 @@ class SettingsRepository(private val context: Context) {
         prefs[WEATHER_APP_INTERNATIONAL] ?: ""
     }
 
+    val showWidgetLabels: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[SHOW_WIDGET_LABELS] ?: false
+    }
+
     suspend fun setThemeMode(mode: ThemeMode) {
         context.dataStore.edit { it[THEME_MODE] = mode.name }
     }
@@ -89,6 +94,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setWeatherAppInternational(packageName: String) {
         context.dataStore.edit { it[WEATHER_APP_INTERNATIONAL] = packageName }
+    }
+
+    suspend fun setShowWidgetLabels(show: Boolean) {
+        context.dataStore.edit { it[SHOW_WIDGET_LABELS] = show }
     }
 
 }

@@ -24,6 +24,7 @@ fun SettingsScreen(
     showDrawerIcons: Boolean,
     weatherApp: String,
     weatherAppInternational: String,
+    showWidgetLabels: Boolean,
     allApps: List<com.herrderb.launcherli.data.AppInfo>,
     onThemeChange: (ThemeMode) -> Unit,
     onFavoriteTextSizeChange: (Float) -> Unit,
@@ -31,6 +32,7 @@ fun SettingsScreen(
     onShowDrawerIconsChange: (Boolean) -> Unit,
     onWeatherAppChange: (String) -> Unit,
     onWeatherAppInternationalChange: (String) -> Unit,
+    onShowWidgetLabelsChange: (Boolean) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -258,6 +260,22 @@ fun SettingsScreen(
                 confirmButton = {
                     TextButton(onClick = { showAppPickerIntl = false }) { Text("Cancel") }
                 }
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Show station labels",
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+            )
+            Switch(
+                checked = showWidgetLabels,
+                onCheckedChange = onShowWidgetLabelsChange
             )
         }
 
