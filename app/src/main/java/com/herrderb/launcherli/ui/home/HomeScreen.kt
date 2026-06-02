@@ -99,6 +99,12 @@ fun HomeScreen(
             var currentDate by remember { mutableStateOf("") }
             var nextAlarmText by remember { mutableStateOf("") }
             var clockStartX by remember { mutableFloatStateOf(0f) }
+            var clockEndX by remember { mutableFloatStateOf(0f) }
+            var clockLineLeft by remember { mutableFloatStateOf(0f) }
+            var clockLineRight by remember { mutableFloatStateOf(0f) }
+            var dateRowStartX by remember { mutableFloatStateOf(0f) }
+            var dateRowWidth by remember { mutableFloatStateOf(0f) }
+            val density = LocalDensity.current
             val alarmManager = remember {
                 context.getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
             }
@@ -112,7 +118,7 @@ fun HomeScreen(
                     currentTime = timeFormatter.format(date)
                     currentDate = dateFormatter.format(date)
                     val nextAlarm = alarmManager.nextAlarmClock
-                    nextAlarmText = if (nextAlarm != null) {
+                    nextAlarmText = if (nextAlarm != null && nextAlarm.triggerTime - now <= 24 * 60 * 60 * 1000L) {
                         alarmFormatter.format(Date(nextAlarm.triggerTime))
                     } else ""
                     // Sleep exactly until the next minute boundary
@@ -206,10 +212,17 @@ fun HomeScreen(
                         fontSize = 64.sp,
                         fontWeight = FontWeight.Light,
                         color = MaterialTheme.colorScheme.onBackground,
+                        onTextLayout = { layout ->
+                            if (layout.lineCount > 0) {
+                                clockLineLeft = layout.getLineLeft(0)
+                                clockLineRight = layout.getLineRight(0)
+                            }
+                        },
                         modifier = Modifier
                             .alignBy(LastBaseline)
                             .onGloballyPositioned { coords ->
                                 clockStartX = coords.positionInRoot().x
+                                clockEndX = clockStartX + coords.size.width
                             }
                             .clickable {
                                 val intent = android.content.Intent(android.provider.AlarmClock.ACTION_SHOW_ALARMS)
@@ -275,20 +288,33 @@ fun HomeScreen(
                     }
                 }
 
-                // Date + alarm row (below, centered)
+                // Date + alarm row (date aligned with clock left, alarm with clock right)
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onGloballyPositioned { coords ->
+                            dateRowStartX = coords.positionInRoot().x
+                            dateRowWidth = coords.size.width.toFloat()
+                        },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val datePad = if (clockStartX > 0f && dateRowWidth > 0f) {
+                        with(density) { (clockStartX + clockLineLeft - dateRowStartX).coerceAtLeast(0f).toDp() }
+                    } else 0.dp
+                    val alarmEndPad = if (clockEndX > 0f && dateRowWidth > 0f) {
+                        val visibleClockRight = clockStartX + clockLineRight
+                        with(density) { (dateRowStartX + dateRowWidth - visibleClockRight).coerceAtLeast(0f).toDp() }
+                    } else 0.dp
+
+                    Spacer(modifier = Modifier.width(datePad))
                     Text(
                         text = currentDate,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Light,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                     )
+                    Spacer(modifier = Modifier.weight(1f))
                     if (nextAlarmText.isNotEmpty()) {
-                        Spacer(modifier = Modifier.width(12.dp))
                         Icon(
                             imageVector = Icons.Outlined.Alarm,
                             contentDescription = null,
@@ -303,6 +329,7 @@ fun HomeScreen(
                             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                         )
                     }
+                    Spacer(modifier = Modifier.width(alarmEndPad))
                 }
             }
 
@@ -320,7 +347,6 @@ fun HomeScreen(
             // Favorite apps list (bottom - text only)
             Spacer(modifier = Modifier.weight(1f))
             val itemHeight = 40.dp
-            val density = LocalDensity.current
             var draggedIndex by remember { mutableStateOf<Int?>(null) }
             var dragOffsetY by remember { mutableFloatStateOf(0f) }
 
@@ -338,7 +364,7 @@ fun HomeScreen(
             }
 
             val startPadding = if (uiState.favoriteAlignment == "centered" && clockStartX > 0f) {
-                with(density) { clockStartX.toDp() }
+                with(density) { (clockStartX + clockLineLeft).toDp() }
             } else 24.dp
 
             LazyColumn(
