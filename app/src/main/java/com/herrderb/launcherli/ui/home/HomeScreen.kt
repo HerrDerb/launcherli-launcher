@@ -9,6 +9,8 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.layout.LastBaseline
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
@@ -30,7 +32,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -96,6 +97,7 @@ fun HomeScreen(
             var currentTime by remember { mutableStateOf("") }
             var currentDate by remember { mutableStateOf("") }
             var nextAlarmText by remember { mutableStateOf("") }
+            var clockStartX by remember { mutableFloatStateOf(0f) }
             val alarmManager = remember {
                 context.getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
             }
@@ -184,6 +186,9 @@ fun HomeScreen(
                         color = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier
                             .alignBy(LastBaseline)
+                            .onGloballyPositioned { coords ->
+                                clockStartX = coords.positionInRoot().x
+                            }
                             .clickable {
                                 val intent = android.content.Intent(android.provider.AlarmClock.ACTION_SHOW_ALARMS)
                                 try { context.startActivity(intent) } catch (_: Exception) {}
@@ -289,8 +294,8 @@ fun HomeScreen(
                 )
             }
 
-            val startPadding = if (uiState.favoriteAlignment == "centered") {
-                (LocalConfiguration.current.screenWidthDp * 0.35f).dp
+            val startPadding = if (uiState.favoriteAlignment == "centered" && clockStartX > 0f) {
+                with(density) { clockStartX.toDp() }
             } else 24.dp
 
             LazyColumn(
