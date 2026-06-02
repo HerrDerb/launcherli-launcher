@@ -91,20 +91,26 @@ class StationLocator(private val context: Context) {
         return null
     }
 
+    @Volatile private var stationListCache: List<Station>? = null
+
     private fun fetchStationList(): List<Station>? {
-        return try {
-            val url = URL("https://data.geo.admin.ch/api/stac/v1/collections/ch.meteoschweiz.ogd-smn/items?limit=200")
-            val connection = url.openConnection() as HttpURLConnection
-            connection.setRequestProperty("User-Agent", "Launcherli/1.0")
-            connection.connectTimeout = 10000
-            connection.readTimeout = 10000
+        stationListCache?.let { return it }
+        return synchronized(this) {
+            stationListCache?.let { return it }
+            try {
+                val url = URL("https://data.geo.admin.ch/api/stac/v1/collections/ch.meteoschweiz.ogd-smn/items?limit=200")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.setRequestProperty("User-Agent", "Launcherli/1.0")
+                connection.connectTimeout = 10000
+                connection.readTimeout = 10000
 
-            val json = connection.inputStream.bufferedReader().use { it.readText() }
-            connection.disconnect()
+                val json = connection.inputStream.bufferedReader().use { it.readText() }
+                connection.disconnect()
 
-            parseStations(json)
-        } catch (_: Exception) {
-            null
+                parseStations(json).also { stationListCache = it }
+            } catch (_: Exception) {
+                null
+            }
         }
     }
 

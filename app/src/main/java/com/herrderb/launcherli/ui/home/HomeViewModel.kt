@@ -10,6 +10,7 @@ import com.herrderb.launcherli.data.weather.WeatherAdapterRegistry
 import com.herrderb.launcherli.data.weather.WeatherConfig
 import com.herrderb.launcherli.data.weather.WeatherData
 import com.herrderb.launcherli.data.weather.StationLocator
+import com.herrderb.launcherli.data.weather.LocationResult
 import com.herrderb.launcherli.data.hydro.HydroData
 import com.herrderb.launcherli.data.hydro.HydroProvider
 import com.herrderb.launcherli.ui.theme.ThemeMode
@@ -17,9 +18,12 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 data class HomeUiState(
@@ -48,8 +52,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     private val refreshInterval = 5 * 60 * 1000L
-    private var lastWeatherRefresh = 0L
-    private var lastHydroRefresh = 0L
+    private var lastRefresh = 0L
+    private val refreshMutex = Mutex()
+    private var cachedLocationResult: LocationResult? = null
 
     init {
         viewModelScope.launch {
@@ -95,20 +100,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
-        // Refresh weather every 5 minutes
+        // Refresh weather and hydro every 5 minutes
         viewModelScope.launch {
             while (true) {
-                refreshWeather()
-                lastWeatherRefresh = System.currentTimeMillis()
-                delay(refreshInterval)
-            }
-        }
-
-        // Refresh hydro every 5 minutes
-        viewModelScope.launch {
-            while (true) {
-                refreshHydro()
-                lastHydroRefresh = System.currentTimeMillis()
+                refreshWidgets()
+                lastRefresh = System.currentTimeMillis()
                 delay(refreshInterval)
             }
         }
@@ -116,23 +112,33 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         // On resume, refresh immediately if interval has elapsed
         val lifecycleObserver = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                val now = System.currentTimeMillis()
-                if (now - lastWeatherRefresh >= refreshInterval) {
-                    viewModelScope.launch { refreshWeather(); lastWeatherRefresh = System.currentTimeMillis() }
-                }
-                if (now - lastHydroRefresh >= refreshInterval) {
-                    viewModelScope.launch { refreshHydro(); lastHydroRefresh = System.currentTimeMillis() }
+                if (System.currentTimeMillis() - lastRefresh >= refreshInterval) {
+                    viewModelScope.launch {
+                        refreshWidgets()
+                        lastRefresh = System.currentTimeMillis()
+                    }
                 }
             }
         }
         ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
     }
 
-    private suspend fun refreshWeather() {
+    private suspend fun refreshWidgets() = refreshMutex.withLock {
         val locationResult = stationLocator.getLocationResult()
+        val effective = if (locationResult.latitude != 0.0 || locationResult.longitude != 0.0) {
+            cachedLocationResult = locationResult
+            _uiState.update { it.copy(isInSwitzerland = locationResult.isInSwitzerland) }
+            locationResult
+        } else {
+            cachedLocationResult ?: return@withLock
+        }
+        coroutineScope {
+            launch { refreshWeather(effective) }
+            launch { refreshHydro(effective) }
+        }
+    }
 
-        _uiState.update { it.copy(isInSwitzerland = locationResult.isInSwitzerland) }
-
+    private suspend fun refreshWeather(locationResult: LocationResult) {
         val weather = if (locationResult.isInSwitzerland && locationResult.nearestStationId != null) {
             // Use MeteoSwiss in Switzerland
             val adapter = WeatherAdapterRegistry.getAdapter("meteoswiss") ?: return
@@ -157,8 +163,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private suspend fun refreshHydro() {
-        val locationResult = stationLocator.getLocationResult()
+    private suspend fun refreshHydro(locationResult: LocationResult) {
         if (locationResult.isInSwitzerland && locationResult.latitude != 0.0) {
             val hydro = hydroProvider.fetchNearestStation(
                 locationResult.latitude, locationResult.longitude

@@ -149,14 +149,13 @@ class MainActivity : ComponentActivity() {
                                 onToggleLock = { viewModel.toggleHomescreenLock() },
                                 onOpenSettings = { currentScreen = Screen.SETTINGS },
                                 onWeatherClick = {
-                                    val weatherPkg = if (uiState.isInSwitzerland)
-                                        uiState.weatherApp
-                                    else
-                                        uiState.weatherAppInternational
-                                    if (weatherPkg.isNotBlank()) {
-                                        val intent = packageManager.getLaunchIntentForPackage(weatherPkg)
-                                        if (intent != null) startActivity(intent)
-                                    }
+                                    val primaryPkg = if (uiState.isInSwitzerland) uiState.weatherApp else uiState.weatherAppInternational
+                                    val fallbackPkg = if (uiState.isInSwitzerland) uiState.weatherAppInternational else uiState.weatherApp
+                                    val intent = sequenceOf(primaryPkg, fallbackPkg)
+                                        .filter { it.isNotBlank() }
+                                        .mapNotNull { packageManager.getLaunchIntentForPackage(it) }
+                                        .firstOrNull()
+                                    if (intent != null) startActivity(intent)
                                 },
                                 onHydroClick = {
                                     uiState.hydro?.let { hydro ->
