@@ -10,65 +10,52 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
-import kotlin.math.*
-
-data class LocationResult(
-    val latitude: Double,
-    val longitude: Double,
-    val isInSwitzerland: Boolean,
-    val nearestStationId: String?,
-    val nearestStationName: String? = null,
-    val locationName: String? = null
-)
+import kotlin.math.asin
+import kotlin.math.cos
+import kotlin.math.pow
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
- * Finds the nearest MeteoSwiss SwissMetNet station based on device location.
- * Also determines whether the device is in Switzerland.
+ * Resolves the device location into a [LocationInfo] suitable for picking a weather source.
+ *
+ * - For Switzerland, finds the nearest MeteoSwiss SwissMetNet station.
+ * - For other countries, reverse-geocodes the city name for use with Open-Meteo.
  */
 class StationLocator(private val context: Context) {
 
-    data class Station(val id: String, val lat: Double, val lon: Double, val name: String)
+    private data class Station(val id: String, val lat: Double, val lon: Double, val name: String)
 
-    /**
-     * Get location info: coordinates, whether in Switzerland, and nearest station if applicable.
-     */
-    suspend fun getLocationResult(): LocationResult = withContext(Dispatchers.IO) {
-        val location = getLastKnownLocation()
-            ?: return@withContext LocationResult(0.0, 0.0, false, null)
+    suspend fun getLocation(): LocationInfo = withContext(Dispatchers.IO) {
+        val coords = getLastKnownLocation() ?: return@withContext UnavailableLocation
+        val (lat, lon) = coords
 
-        val (inSwitzerland, locationName) = getLocationInfo(location.first, location.second)
+        val (inSwitzerland, cityName) = resolveAddress(lat, lon)
 
-        val nearest = if (inSwitzerland) {
-            val stations = fetchStationList()
-            stations?.minByOrNull { station ->
-                haversineDistance(location.first, location.second, station.lat, station.lon)
-            }
-        } else null
-
-        LocationResult(
-            latitude = location.first,
-            longitude = location.second,
-            isInSwitzerland = inSwitzerland,
-            nearestStationId = nearest?.id ?: if (inSwitzerland) "sma" else null,
-            nearestStationName = nearest?.name,
-            locationName = locationName
-        )
+        if (inSwitzerland) {
+            val nearest = fetchStationList()?.minByOrNull { haversineDistance(lat, lon, it.lat, it.lon) }
+            SwissLocation(
+                latitude = lat,
+                longitude = lon,
+                nearestStationId = nearest?.id ?: DEFAULT_STATION_ID,
+                nearestStationName = nearest?.name ?: DEFAULT_STATION_ID.uppercase()
+            )
+        } else {
+            InternationalLocation(
+                latitude = lat,
+                longitude = lon,
+                cityName = cityName.orEmpty()
+            )
+        }
     }
 
-    @Deprecated("Use getLocationResult() instead")
-    suspend fun getNearestStationId(): String {
-        val result = getLocationResult()
-        return result.nearestStationId ?: "sma"
-    }
-
-    private fun getLocationInfo(lat: Double, lon: Double): Pair<Boolean, String?> {
+    private fun resolveAddress(lat: Double, lon: Double): Pair<Boolean, String?> {
         return try {
             @Suppress("DEPRECATION")
-            val addresses = Geocoder(context).getFromLocation(lat, lon, 1)
-            val addr = addresses?.firstOrNull()
+            val addr = Geocoder(context).getFromLocation(lat, lon, 1)?.firstOrNull()
             val inSwitzerland = addr?.countryCode == "CH"
-            val locality = addr?.locality ?: addr?.subAdminArea ?: addr?.adminArea
-            Pair(inSwitzerland, if (!inSwitzerland) locality else null)
+            val city = addr?.locality ?: addr?.subAdminArea ?: addr?.adminArea
+            Pair(inSwitzerland, if (!inSwitzerland) city else null)
         } catch (_: Exception) {
             Pair(lat in 45.8..47.8 && lon in 5.9..10.5, null)
         }
@@ -143,5 +130,9 @@ class StationLocator(private val context: Context) {
         val dLon = Math.toRadians(lon2 - lon1)
         val a = sin(dLat / 2).pow(2) + cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLon / 2).pow(2)
         return r * 2 * asin(sqrt(a))
+    }
+
+    companion object {
+        private const val DEFAULT_STATION_ID = "sma"
     }
 }

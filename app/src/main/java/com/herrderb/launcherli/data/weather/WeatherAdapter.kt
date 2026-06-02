@@ -7,7 +7,7 @@ data class WeatherData(
     val temperature: Float,
     val condition: WeatherCondition,
     val forecastCondition: WeatherCondition? = null,
-    val stationName: String? = null
+    val stationName: String = ""
 )
 
 enum class WeatherCondition {

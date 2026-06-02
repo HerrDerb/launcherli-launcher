@@ -138,7 +138,7 @@ fun HomeScreen(
                     ) {
                         uiState.weather?.let { weather ->
                             Column(horizontalAlignment = Alignment.Start) {
-                                if (uiState.showWidgetLabels && weather.stationName != null) {
+                                if (uiState.showWidgetLabels && weather.stationName.isNotEmpty()) {
                                     val cleaned = weather.stationName
                                         .replace(Regex("""\s*\([^)]+\)\s*$"""), "").trim()
                                     cleaned.split("/")
