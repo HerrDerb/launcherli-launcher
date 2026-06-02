@@ -34,7 +34,6 @@ interface WeatherAdapter {
  * Configuration for a weather adapter (e.g. station ID, location, API key).
  */
 data class WeatherConfig(
-    val stationId: String = "",
     val latitude: Double = 0.0,
     val longitude: Double = 0.0,
     val extras: Map<String, String> = emptyMap()

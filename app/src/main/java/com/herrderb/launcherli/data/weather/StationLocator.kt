@@ -26,27 +26,17 @@ class StationLocator(private val context: Context) {
 
     private data class Station(val id: String, val lat: Double, val lon: Double, val name: String)
 
-    suspend fun getLocation(): LocationInfo = withContext(Dispatchers.IO) {
-        val coords = getLastKnownLocation() ?: return@withContext UnavailableLocation
+    suspend fun getLocation(): LocationInfo? = withContext(Dispatchers.IO) {
+        val coords = getLastKnownLocation() ?: return@withContext null
         val (lat, lon) = coords
 
         val (inSwitzerland, cityName) = resolveAddress(lat, lon)
-
-        if (inSwitzerland) {
-            val nearest = fetchStationList()?.minByOrNull { haversineDistance(lat, lon, it.lat, it.lon) }
-            SwissLocation(
+            LocationInfo(
                 latitude = lat,
                 longitude = lon,
-                nearestStationId = nearest?.id ?: DEFAULT_STATION_ID,
-                nearestStationName = nearest?.name ?: DEFAULT_STATION_ID.uppercase()
-            )
-        } else {
-            InternationalLocation(
-                latitude = lat,
-                longitude = lon,
+                inSwitzerland = inSwitzerland,
                 cityName = cityName.orEmpty()
             )
-        }
     }
 
     private fun resolveAddress(lat: Double, lon: Double): Pair<Boolean, String?> {
@@ -55,7 +45,7 @@ class StationLocator(private val context: Context) {
             val addr = Geocoder(context).getFromLocation(lat, lon, 1)?.firstOrNull()
             val inSwitzerland = addr?.countryCode == "CH"
             val city = addr?.locality ?: addr?.subAdminArea ?: addr?.adminArea
-            Pair(inSwitzerland, if (!inSwitzerland) city else null)
+            Pair(inSwitzerland, city)
         } catch (_: Exception) {
             Pair(lat in 45.8..47.8 && lon in 5.9..10.5, null)
         }
@@ -86,26 +76,6 @@ class StationLocator(private val context: Context) {
 
     @Volatile private var stationListCache: List<Station>? = null
 
-    private fun fetchStationList(): List<Station>? {
-        stationListCache?.let { return it }
-        return synchronized(this) {
-            stationListCache?.let { return it }
-            try {
-                val url = URL("https://data.geo.admin.ch/api/stac/v1/collections/ch.meteoschweiz.ogd-smn/items?limit=200")
-                val connection = url.openConnection() as HttpURLConnection
-                connection.setRequestProperty("User-Agent", "Launcherli/1.0")
-                connection.connectTimeout = 10000
-                connection.readTimeout = 10000
-
-                val json = connection.inputStream.bufferedReader().use { it.readText() }
-                connection.disconnect()
-
-                parseStations(json).also { stationListCache = it }
-            } catch (_: Exception) {
-                null
-            }
-        }
-    }
 
     private fun parseStations(json: String): List<Station> {
         val stations = mutableListOf<Station>()
@@ -133,6 +103,6 @@ class StationLocator(private val context: Context) {
     }
 
     companion object {
-        private const val DEFAULT_STATION_ID = "sma"
+        private const val DEFAULT_STATION_NAME = "Zürich"
     }
 }

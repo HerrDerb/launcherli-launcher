@@ -9,7 +9,6 @@ object WeatherAdapterRegistry {
     private val adapters = mutableMapOf<String, WeatherAdapter>()
 
     init {
-        register(MeteoSwissAdapter())
         register(OpenMeteoAdapter())
     }
 

@@ -11,9 +11,6 @@ import com.herrderb.launcherli.data.weather.WeatherConfig
 import com.herrderb.launcherli.data.weather.WeatherData
 import com.herrderb.launcherli.data.weather.StationLocator
 import com.herrderb.launcherli.data.weather.LocationInfo
-import com.herrderb.launcherli.data.weather.SwissLocation
-import com.herrderb.launcherli.data.weather.InternationalLocation
-import com.herrderb.launcherli.data.weather.UnavailableLocation
 import com.herrderb.launcherli.data.hydro.HydroData
 import com.herrderb.launcherli.data.hydro.HydroProvider
 import com.herrderb.launcherli.ui.theme.ThemeMode
@@ -53,7 +50,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
-    private val refreshInterval = 5 * 60 * 1000L
+    private val refreshInterval = 15 * 60 * 1000L
     private var lastRefresh = 0L
     private val refreshMutex = Mutex()
     private var cachedLocationResult: LocationInfo? = null
@@ -124,43 +121,21 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private suspend fun refreshWidgets() = refreshMutex.withLock {
-        val location = stationLocator.getLocation()
-        val effective: LocationInfo = if (location !is UnavailableLocation) {
-            cachedLocationResult = location
-            _uiState.update { it.copy(isInSwitzerland = location is SwissLocation) }
-            location
-        } else {
-            cachedLocationResult ?: return@withLock
-        }
+        val location = stationLocator.getLocation() ?: return@withLock
         coroutineScope {
-            launch { refreshWeather(effective) }
-            launch { refreshHydro(effective) }
+            launch { refreshWeather(location) }
+            launch { refreshHydro(location) }
         }
     }
 
     private suspend fun refreshWeather(location: LocationInfo) {
-        val weather = when (location) {
-            is SwissLocation -> {
-                val adapter = WeatherAdapterRegistry.getAdapter("meteoswiss") ?: return
-                adapter.fetchWeather(
-                    WeatherConfig(
-                        stationId = location.nearestStationId,
-                        latitude = location.latitude,
-                        longitude = location.longitude
-                    )
-                )?.copy(stationName = location.nearestStationName)
-            }
-            is InternationalLocation -> {
-                val adapter = WeatherAdapterRegistry.getAdapter("openmeteo") ?: return
-                adapter.fetchWeather(
-                    WeatherConfig(
-                        latitude = location.latitude,
-                        longitude = location.longitude
-                    )
-                )?.copy(stationName = location.cityName)
-            }
-            UnavailableLocation -> null
-        }
+        val adapter = WeatherAdapterRegistry.getAdapter("openmeteo") ?: return
+        val weather = adapter.fetchWeather(
+                WeatherConfig(
+                    latitude = location.latitude,
+                    longitude = location.longitude
+                )
+            )?.copy(stationName = location.cityName)
 
         if (weather != null) {
             _uiState.update { it.copy(weather = weather) }
@@ -168,7 +143,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private suspend fun refreshHydro(location: LocationInfo) {
-        if (location is SwissLocation) {
+        if (location.inSwitzerland) {
             val hydro = hydroProvider.fetchNearestStation(location.latitude, location.longitude)
             if (hydro != null) {
                 _uiState.update { it.copy(hydro = hydro) }
