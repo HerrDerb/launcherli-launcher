@@ -222,7 +222,7 @@ fun HomeScreen(
                             )
                             if (uiState.hydro != null) {
                                 Text(
-                                    text = "${uiState.hydro.temperature.toInt()}°",
+                                    text = "${"%.1f".format(uiState.hydro.temperature)}°",
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.Light,
                                     color = MaterialTheme.colorScheme.onBackground
