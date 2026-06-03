@@ -1,5 +1,13 @@
 package com.herrderb.launcherli.ui.home
 
+import android.R
+import android.app.Notification
+import android.content.BroadcastReceiver
+import android.content.ContentValues.TAG
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.util.Log
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.basicMarquee
@@ -41,6 +49,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat.registerReceiver
 import com.herrderb.launcherli.data.AppInfo
 import com.herrderb.launcherli.data.weather.WeatherCondition
 import kotlinx.coroutines.delay
@@ -113,19 +122,25 @@ fun HomeScreen(
                 val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
                 val dateFormatter = SimpleDateFormat("EEE. d MMM", Locale.getDefault())
                 val alarmFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
-                while (true) {
-                    val now = System.currentTimeMillis()
-                    val date = Date(now)
-                    currentTime = timeFormatter.format(date)
-                    currentDate = dateFormatter.format(date)
-                    val nextAlarm = alarmManager.nextAlarmClock
-                    nextAlarmText = if (nextAlarm != null && nextAlarm.triggerTime - now <= 24 * 60 * 60 * 1000L) {
-                        alarmFormatter.format(Date(nextAlarm.triggerTime))
-                    } else ""
-                    // Sleep exactly until the next minute boundary
-                    val msUntilNextMinute = 60_000L - (now % 60_000L)
-                    delay(msUntilNextMinute)
+                val receiver = object: BroadcastReceiver() {
+                    override fun onReceive(
+                        p0: Context?,
+                        p1: Intent?
+                    ) {
+                        val now = System.currentTimeMillis()
+                        val date = Date(now)
+                        currentTime = timeFormatter.format(date)
+                        currentDate = dateFormatter.format(date)
+                        Log.i("TimeListener", "onReceive: time changed" + currentTime)
+                        val nextAlarm = alarmManager.nextAlarmClock
+                        nextAlarmText = if (nextAlarm != null && nextAlarm.triggerTime - now <= 24 * 60 * 60 * 1000L) {
+                            alarmFormatter.format(Date(nextAlarm.triggerTime))} else ""
+                    }
+
                 }
+                val intentFilter = IntentFilter()
+                intentFilter.addAction(Intent.ACTION_TIME_TICK)
+                context.registerReceiver(receiver, intentFilter);
             }
             Column(
                 modifier = Modifier
@@ -140,7 +155,9 @@ fun HomeScreen(
                 ) {
                     // Weather widget (left side, clickable)
                     Box(
-                        modifier = Modifier.weight(1f).alignBy(LastBaseline),
+                        modifier = Modifier
+                            .weight(1f)
+                            .alignBy(LastBaseline),
                         contentAlignment = Alignment.CenterEnd
                     ) {
                         uiState.weather?.let { weather ->
@@ -226,14 +243,20 @@ fun HomeScreen(
                                 clockEndX = clockStartX + coords.size.width
                             }
                             .clickable {
-                                val intent = android.content.Intent(android.provider.AlarmClock.ACTION_SHOW_ALARMS)
-                                try { context.startActivity(intent) } catch (_: Exception) {}
+                                val intent =
+                                    android.content.Intent(android.provider.AlarmClock.ACTION_SHOW_ALARMS)
+                                try {
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {
+                                }
                             }
                     )
 
                     // Hydro widget (right side, clickable)
                     Box(
-                        modifier = Modifier.weight(1f).alignBy(LastBaseline),
+                        modifier = Modifier
+                            .weight(1f)
+                            .alignBy(LastBaseline),
                         contentAlignment = Alignment.CenterStart
                     ) {
                         uiState.hydro?.let { hydro ->
@@ -416,7 +439,8 @@ fun HomeScreen(
                                             detectHorizontalDragGestures(
                                                 onDragStart = { swipeOffsetX = 0f },
                                                 onHorizontalDrag = { _, dragAmount ->
-                                                    swipeOffsetX = (swipeOffsetX + dragAmount).coerceAtMost(0f)
+                                                    swipeOffsetX =
+                                                        (swipeOffsetX + dragAmount).coerceAtMost(0f)
                                                 },
                                                 onDragEnd = {
                                                     if (swipeOffsetX < -swipeThreshold) {
@@ -461,14 +485,20 @@ fun HomeScreen(
                                                 },
                                                 onDrag = { _, offset ->
                                                     dragOffsetY += offset.y
-                                                    val itemHeightPx = with(density) { (itemHeight + 12.dp).toPx() }
-                                                    val moveBy = (dragOffsetY / itemHeightPx).toInt()
+                                                    val itemHeightPx =
+                                                        with(density) { (itemHeight + 12.dp).toPx() }
+                                                    val moveBy =
+                                                        (dragOffsetY / itemHeightPx).toInt()
                                                     if (moveBy != 0 && draggedIndex != null) {
                                                         val fromIndex = draggedIndex!!
                                                         val toIndex = (fromIndex + moveBy)
-                                                            .coerceIn(0, uiState.favoriteApps.size - 1)
+                                                            .coerceIn(
+                                                                0,
+                                                                uiState.favoriteApps.size - 1
+                                                            )
                                                         if (fromIndex != toIndex) {
-                                                            val list = uiState.favoriteApps.toMutableList()
+                                                            val list =
+                                                                uiState.favoriteApps.toMutableList()
                                                             val item2 = list.removeAt(fromIndex)
                                                             list.add(toIndex, item2)
                                                             onReorderFavorites(list)
