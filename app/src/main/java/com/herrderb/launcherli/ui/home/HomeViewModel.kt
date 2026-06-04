@@ -100,8 +100,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         // Refresh weather and hydro every 5 minutes
         viewModelScope.launch {
             while (true) {
-                refreshWidgets()
                 lastRefresh = System.currentTimeMillis()
+                refreshWidgets()
                 delay(refreshInterval)
             }
         }

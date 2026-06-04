@@ -34,7 +34,8 @@ class OpenMeteoAdapter : WeatherAdapter {
 
             val responseCode = connection.responseCode
             if (responseCode >= 400) {
-                Log.e("OpenMeteoAdapter", "HTTP $responseCode from Open-Meteo")
+                val retryAfter = connection.getHeaderField("Retry-After")
+                Log.e("OpenMeteoAdapter", "HTTP $responseCode from Open-Meteo (Retry-After: $retryAfter)")
                 connection.disconnect()
                 return@withContext null
             }
@@ -51,6 +52,7 @@ class OpenMeteoAdapter : WeatherAdapter {
 
             WeatherData(temperature = temperature, condition = condition, forecastCondition = forecastCondition)
         } catch (e: Exception) {
+            Log.e("OpenMeteoAdapter", "Failed to fetch weather", e)
             null
         }
     }

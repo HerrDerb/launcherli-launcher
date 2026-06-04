@@ -29,17 +29,17 @@ import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.herrderb.launcherli.data.AppInfo
 import kotlin.math.roundToInt
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -55,6 +55,7 @@ fun AppDrawerScreen(
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
+    val focusManager = LocalFocusManager.current
     var searchQuery by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -145,6 +146,7 @@ fun AppDrawerScreen(
                 items(filteredApps, key = { it.packageName }) { app ->
                     val isFavorite = app.packageName in favoriteSet
                     var swipeOffsetX by remember { mutableFloatStateOf(0f) }
+                    var showMenu by remember { mutableStateOf(false) }
                     val swipeThreshold = with(density) { 100.dp.toPx() }
                     val isPastThreshold = swipeOffsetX < -swipeThreshold
                     val swipeFraction = ((-swipeOffsetX) / swipeThreshold).coerceIn(0f, 1.5f)
@@ -176,35 +178,32 @@ fun AppDrawerScreen(
                                 .fillMaxWidth()
                                 .offset { IntOffset(swipeOffsetX.roundToInt(), 0) }
                                 .pointerInput(isFavorite) {
-                                    coroutineScope {
-                                        launch {
-                                            detectHorizontalDragGestures(
-                                                onDragStart = { swipeOffsetX = 0f },
-                                                onHorizontalDrag = { _, delta ->
-                                                    swipeOffsetX = (swipeOffsetX + delta).coerceAtMost(0f)
-                                                },
-                                                onDragEnd = {
-                                                    if (!isFavorite && swipeOffsetX < -swipeThreshold) {
-                                                        onAddFavorite(app)
-                                                        showSnackbar = "★ ${app.label} added to favorites"
-                                                    }
-                                                    swipeOffsetX = 0f
-                                                },
-                                                onDragCancel = { swipeOffsetX = 0f }
-                                            )
+                                    detectHorizontalDragGestures(
+                                        onDragStart = { swipeOffsetX = 0f },
+                                        onHorizontalDrag = { _, delta ->
+                                            swipeOffsetX = (swipeOffsetX + delta).coerceAtMost(0f)
+                                        },
+                                        onDragEnd = {
+                                            if (!isFavorite && swipeOffsetX < -swipeThreshold) {
+                                                onAddFavorite(app)
+                                                showSnackbar = "★ ${app.label} added to favorites"
+                                            }
+                                            swipeOffsetX = 0f
+                                        },
+                                        onDragCancel = { swipeOffsetX = 0f }
+                                    )
+                                }
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onTap = {
+                                            focusManager.clearFocus()
+                                            onAppLaunch(app)
+                                        },
+                                        onLongPress = {
+                                            focusManager.clearFocus()
+                                            showMenu = true
                                         }
-                                        launch {
-                                            detectTapGestures(
-                                                onTap = { onAppLaunch(app) },
-                                                onLongPress = {
-                                                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                                        data = Uri.parse("package:${app.packageName}")
-                                                    }
-                                                    context.startActivity(intent)
-                                                }
-                                            )
-                                        }
-                                    }
+                                    )
                                 }
                                 .padding(vertical = 10.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -235,6 +234,31 @@ fun AppDrawerScreen(
                                     modifier = Modifier.padding(start = 8.dp)
                                 )
                             }
+                        }
+
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false },
+                            offset = DpOffset(48.dp, (-100).dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                text = app.label,
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 0.dp)
+                            )
+                            HorizontalDivider()
+                            DropdownMenuItem(
+                                text = { Text("App info") },
+                                onClick = {
+                                    showMenu = false
+                                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                        data = Uri.parse("package:${app.packageName}")
+                                    }
+                                    context.startActivity(intent)
+                                }
+                            )
                         }
                     }
                 }

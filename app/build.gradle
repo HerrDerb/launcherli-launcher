@@ -68,7 +68,8 @@ tasks.register('deploy', Exec) {
     description = 'Build debug APK, install on connected device, and launch the app'
     group = 'development'
     dependsOn 'installDebug'
-    def adb = "${android.sdkDirectory}/platform-tools/adb"
+    def sdkDir = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT") ?: "${System.getProperty('user.home')}/AppData/Local/Android/Sdk"
+    def adb = "${sdkDir}/platform-tools/adb"
     commandLine adb, 'shell', 'am', 'start', '-n',
         'com.herrderb.launcherli/.MainActivity',
         '-a', 'android.intent.action.MAIN',
