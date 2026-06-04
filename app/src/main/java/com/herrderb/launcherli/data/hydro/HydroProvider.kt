@@ -1,6 +1,7 @@
 package com.herrderb.launcherli.data.hydro
 
 import android.content.Context
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -84,6 +85,13 @@ class HydroProvider(private val context: Context) {
             conn.connectTimeout = 10000
             conn.readTimeout = 10000
 
+            val responseCode = conn.responseCode
+            if (responseCode >= 400) {
+                Log.e("HydroProvider", "HTTP $responseCode fetching temperature for station $stationKey")
+                conn.disconnect()
+                return null
+            }
+
             val json = conn.inputStream.bufferedReader().readText()
             conn.disconnect()
 
@@ -124,6 +132,13 @@ class HydroProvider(private val context: Context) {
             conn.setRequestProperty("User-Agent", "Launcherli/1.0")
             conn.connectTimeout = 10000
             conn.readTimeout = 10000
+
+            val responseCode = conn.responseCode
+            if (responseCode >= 400) {
+                Log.e("HydroProvider", "HTTP $responseCode fetching hydro GeoJSON")
+                conn.disconnect()
+                throw Exception("HTTP $responseCode")
+            }
 
             val json = conn.inputStream.bufferedReader().readText()
             conn.disconnect()

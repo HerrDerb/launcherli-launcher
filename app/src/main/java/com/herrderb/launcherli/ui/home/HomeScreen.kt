@@ -118,29 +118,31 @@ fun HomeScreen(
             val alarmManager = remember {
                 context.getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
             }
-            LaunchedEffect(Unit) {
+            DisposableEffect(Unit) {
                 val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
                 val dateFormatter = SimpleDateFormat("EEE. d MMM", Locale.getDefault())
                 val alarmFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
-                val receiver = object: BroadcastReceiver() {
-                    override fun onReceive(
-                        p0: Context?,
-                        p1: Intent?
-                    ) {
-                        val now = System.currentTimeMillis()
-                        val date = Date(now)
-                        currentTime = timeFormatter.format(date)
-                        currentDate = dateFormatter.format(date)
-                        Log.i("TimeListener", "onReceive: time changed" + currentTime)
-                        val nextAlarm = alarmManager.nextAlarmClock
-                        nextAlarmText = if (nextAlarm != null && nextAlarm.triggerTime - now <= 24 * 60 * 60 * 1000L) {
-                            alarmFormatter.format(Date(nextAlarm.triggerTime))} else ""
-                    }
 
+                fun updateTime() {
+                    val now = System.currentTimeMillis()
+                    val date = Date(now)
+                    currentTime = timeFormatter.format(date)
+                    currentDate = dateFormatter.format(date)
+                    val nextAlarm = alarmManager.nextAlarmClock
+                    nextAlarmText = if (nextAlarm != null && nextAlarm.triggerTime - now <= 24 * 60 * 60 * 1000L) {
+                        alarmFormatter.format(Date(nextAlarm.triggerTime))} else ""
                 }
-                val intentFilter = IntentFilter()
-                intentFilter.addAction(Intent.ACTION_TIME_TICK)
-                context.registerReceiver(receiver, intentFilter);
+
+                val receiver = object : BroadcastReceiver() {
+                    override fun onReceive(p0: Context?, p1: Intent?) {
+                        updateTime()
+                    }
+                }
+
+                updateTime()
+                val intentFilter = IntentFilter(Intent.ACTION_TIME_TICK)
+                context.registerReceiver(receiver, intentFilter)
+                onDispose { context.unregisterReceiver(receiver) }
             }
             Column(
                 modifier = Modifier

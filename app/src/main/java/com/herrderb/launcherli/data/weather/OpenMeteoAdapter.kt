@@ -1,5 +1,6 @@
 package com.herrderb.launcherli.data.weather
 
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
@@ -30,6 +31,13 @@ class OpenMeteoAdapter : WeatherAdapter {
             connection.setRequestProperty("Cache-Control", "no-cache")
             connection.connectTimeout = 10000
             connection.readTimeout = 10000
+
+            val responseCode = connection.responseCode
+            if (responseCode >= 400) {
+                Log.e("OpenMeteoAdapter", "HTTP $responseCode from Open-Meteo")
+                connection.disconnect()
+                return@withContext null
+            }
 
             val json = connection.inputStream.bufferedReader().use { it.readText() }
             connection.disconnect()
