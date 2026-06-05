@@ -138,7 +138,7 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onDragDrawerEnd = { progress ->
                                     isDraggingDrawer = false
-                                    if (progress > 0.3f) {
+                                    if (progress > 0.6f) {
                                         currentScreen = Screen.DRAWER
                                         drawerProgress = 1f
                                     } else {
@@ -204,7 +204,11 @@ class MainActivity : ComponentActivity() {
                             allApps = uiState.allApps,
                             favoritePackages = favoritePackagesList,
                             showIcons = uiState.showDrawerIcons,
-                            onAppLaunch = { viewModel.launchApp(it) },
+                            onAppLaunch = {
+                                viewModel.launchApp(it)
+                                currentScreen = Screen.HOME
+                                drawerProgress = 0f
+                            },
                             onAddFavorite = { viewModel.addFavoriteApp(it) },
                             onRemoveFavorite = { viewModel.removeFavoriteApp(it) },
                             onBack = {

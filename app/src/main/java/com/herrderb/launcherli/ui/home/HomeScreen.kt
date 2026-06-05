@@ -100,6 +100,11 @@ fun HomeScreen(
                         val progress = (-totalDrag / size.width).coerceIn(0f, 1f)
                         onDragDrawerEnd(progress)
                         totalDrag = 0f
+                    },
+                    onDragCancel = {
+                        val progress = (-totalDrag / size.width).coerceIn(0f, 1f)
+                        onDragDrawerEnd(progress)
+                        totalDrag = 0f
                     }
                 )
             }
@@ -414,6 +419,10 @@ fun HomeScreen(
                                         }
                                     },
                                     onDragEnd = {
+                                        onDragDrawerEnd((-totalDrag / size.width).coerceIn(0f, 1f))
+                                        totalDrag = 0f
+                                    },
+                                    onDragCancel = {
                                         onDragDrawerEnd((-totalDrag / size.width).coerceIn(0f, 1f))
                                         totalDrag = 0f
                                     }
