@@ -37,7 +37,10 @@ data class HomeUiState(
     val isInSwitzerland: Boolean = true,
     val weather: WeatherData? = null,
     val hydro: HydroData? = null,
-    val showWidgetLabels: Boolean = false
+    val showWidgetLabels: Boolean = false,
+    val calendarIcsUrl: String = "",
+    val todayAppointmentStarts: List<Long> = emptyList(),
+    val tomorrowAppointments: Int = 0
 )
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
@@ -46,12 +49,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val appRepository = AppRepository(application)
     private val stationLocator = StationLocator(application)
     private val hydroProvider = HydroProvider(application)
+    private val icsRepo = com.herrderb.launcherli.data.calendar.IcsCalendarRepository()
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     private val refreshInterval = 15 * 60 * 1000L
     private var lastRefresh = 0L
+    private val calendarRefreshInterval = 30 * 60 * 1000L
+    private var lastCalendarRefresh = 0L
     private val refreshMutex = Mutex()
     private var cachedLocationResult: LocationInfo? = null
 
@@ -65,7 +71,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 settingsRepository.homescreenLocked,
                 settingsRepository.favoriteTextSize,
                 settingsRepository.favoriteAlignment,
-                settingsRepository.showDrawerIcons
+                settingsRepository.showDrawerIcons,
+                settingsRepository.calendarIcsUrl
             ) { params ->
                 val theme = params[0] as ThemeMode
                 @Suppress("UNCHECKED_CAST")
@@ -74,6 +81,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 val textSize = params[3] as Float
                 val alignment = params[4] as String
                 val drawerIcons = params[5] as Boolean
+                val icsUrl = params[6] as String
 
                 val allApps = _uiState.value.allApps
                 val favApps = favPackages.mapNotNull { pkg ->
@@ -86,7 +94,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     allApps = allApps,
                     favoriteTextSize = textSize,
                     favoriteAlignment = alignment,
-                    showDrawerIcons = drawerIcons
+                    showDrawerIcons = drawerIcons,
+                    calendarIcsUrl = icsUrl
                 )
             }
 
@@ -94,6 +103,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 state.copy(showWidgetLabels = showLabels)
             }.collect { state ->
                 _uiState.value = state
+            }
+        }
+
+        // Refetch appointments whenever the link changes, then on a fixed timer.
+        viewModelScope.launch {
+            settingsRepository.calendarIcsUrl.distinctUntilChanged().collect { url ->
+                refreshCalendar(url)
+            }
+        }
+        viewModelScope.launch {
+            while (true) {
+                delay(calendarRefreshInterval)
+                refreshCalendar(settingsRepository.calendarIcsUrl.first())
             }
         }
 
@@ -109,6 +131,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         // On resume, refresh immediately if interval has elapsed
         val lifecycleObserver = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
+                if (System.currentTimeMillis() - lastCalendarRefresh >= calendarRefreshInterval) {
+                    viewModelScope.launch {
+                        refreshCalendar(settingsRepository.calendarIcsUrl.first())
+                    }
+                }
                 if (System.currentTimeMillis() - lastRefresh >= refreshInterval) {
                     viewModelScope.launch {
                         refreshWidgets()
@@ -125,6 +152,27 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         coroutineScope {
             launch { refreshWeather(location) }
             launch { refreshHydro(location) }
+        }
+    }
+
+    private suspend fun refreshCalendar(icsUrl: String) = withContext(Dispatchers.IO) {
+        lastCalendarRefresh = System.currentTimeMillis()
+        if (icsUrl.isBlank()) {
+            _uiState.update { it.copy(todayAppointmentStarts = emptyList(), tomorrowAppointments = 0) }
+            return@withContext
+        }
+        val times = icsRepo.fetchTimes(icsUrl) ?: return@withContext
+        _uiState.update {
+            it.copy(
+                todayAppointmentStarts = times.todayStarts,
+                tomorrowAppointments = times.tomorrowStarts.size
+            )
+        }
+    }
+
+    fun setCalendarIcsUrl(url: String) {
+        viewModelScope.launch {
+            settingsRepository.setCalendarIcsUrl(url.trim())
         }
     }
 

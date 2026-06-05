@@ -23,12 +23,14 @@ fun SettingsScreen(
     favoriteAlignment: String,
     showDrawerIcons: Boolean,
     showWidgetLabels: Boolean,
+    calendarIcsUrl: String,
     allApps: List<com.herrderb.launcherli.data.AppInfo>,
     onThemeChange: (ThemeMode) -> Unit,
     onFavoriteTextSizeChange: (Float) -> Unit,
     onFavoriteAlignmentChange: (String) -> Unit,
     onShowDrawerIconsChange: (Boolean) -> Unit,
     onShowWidgetLabelsChange: (Boolean) -> Unit,
+    onCalendarIcsUrlChange: (String) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -165,6 +167,42 @@ fun SettingsScreen(
                 checked = showWidgetLabels,
                 onCheckedChange = onShowWidgetLabelsChange
             )
+        }
+
+        HorizontalDivider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f))
+
+        // --- Calendar ---
+        SectionHeader("Calendar")
+
+        Text(
+            text = "Paste a public calendar link (.ics). In Proton Calendar: " +
+                "Settings → Share → Share with anyone → copy link.",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+        )
+
+        var urlText by remember(calendarIcsUrl) { mutableStateOf(calendarIcsUrl) }
+        OutlinedTextField(
+            value = urlText,
+            onValueChange = { urlText = it },
+            label = { Text("Calendar link (.ics)") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            if (urlText.isNotBlank()) {
+                TextButton(onClick = {
+                    urlText = ""
+                    onCalendarIcsUrlChange("")
+                }) { Text("Clear") }
+            }
+            TextButton(
+                onClick = { onCalendarIcsUrlChange(urlText.trim()) },
+                enabled = urlText.trim() != calendarIcsUrl
+            ) { Text("Save") }
         }
 
         HorizontalDivider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f))

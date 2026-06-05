@@ -114,6 +114,7 @@ fun HomeScreen(
             var currentTime by remember { mutableStateOf("") }
             var currentDate by remember { mutableStateOf("") }
             var nextAlarmText by remember { mutableStateOf("") }
+            var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
             var clockStartX by remember { mutableFloatStateOf(0f) }
             var clockEndX by remember { mutableFloatStateOf(0f) }
             var clockLineLeft by remember { mutableFloatStateOf(0f) }
@@ -131,6 +132,7 @@ fun HomeScreen(
 
                 fun updateTime() {
                     val now = System.currentTimeMillis()
+                    nowMs = now
                     val date = Date(now)
                     currentTime = timeFormatter.format(date)
                     currentDate = dateFormatter.format(date)
@@ -365,6 +367,33 @@ fun HomeScreen(
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                     )
                     Spacer(modifier = Modifier.width(alarmEndPad))
+                }
+
+                // Appointment counts (today / tomorrow), aligned under the date
+                if (uiState.calendarIcsUrl.isNotBlank()) {
+                    val apptEndPad = if (clockEndX > 0f && dateRowWidth > 0f) {
+                        val visibleClockRight = clockStartX + clockLineRight
+                        with(density) { (dateRowStartX + dateRowWidth - visibleClockRight).coerceAtLeast(0f).toDp() }
+                    } else 0.dp
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Spacer(modifier = Modifier.weight(1f))
+                        val todayCount = uiState.todayAppointmentStarts.count { it > nowMs }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = "Today · $todayCount",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Light,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
+                            )
+                            Text(
+                                text = "Tomorrow · ${uiState.tomorrowAppointments}",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Light,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(apptEndPad))
+                    }
                 }
             }
 

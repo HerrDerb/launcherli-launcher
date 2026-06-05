@@ -20,6 +20,7 @@ class SettingsRepository(private val context: Context) {
         private val FAVORITE_ALIGNMENT = stringPreferencesKey("favorite_alignment")
         private val SHOW_DRAWER_ICONS = booleanPreferencesKey("show_drawer_icons")
         private val SHOW_WIDGET_LABELS = booleanPreferencesKey("show_widget_labels")
+        private val CALENDAR_ICS_URL = stringPreferencesKey("calendar_ics_url")
     }
 
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
@@ -54,6 +55,10 @@ class SettingsRepository(private val context: Context) {
         prefs[SHOW_WIDGET_LABELS] ?: false
     }
 
+    val calendarIcsUrl: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[CALENDAR_ICS_URL] ?: ""
+    }
+
     suspend fun setThemeMode(mode: ThemeMode) {
         context.dataStore.edit { it[THEME_MODE] = mode.name }
     }
@@ -80,6 +85,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setShowWidgetLabels(show: Boolean) {
         context.dataStore.edit { it[SHOW_WIDGET_LABELS] = show }
+    }
+
+    suspend fun setCalendarIcsUrl(url: String) {
+        context.dataStore.edit { it[CALENDAR_ICS_URL] = url }
     }
 
 }

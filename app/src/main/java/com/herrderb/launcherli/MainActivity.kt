@@ -180,12 +180,14 @@ class MainActivity : ComponentActivity() {
                                 favoriteAlignment = uiState.favoriteAlignment,
                                 showDrawerIcons = uiState.showDrawerIcons,
                                 showWidgetLabels = uiState.showWidgetLabels,
+                                calendarIcsUrl = uiState.calendarIcsUrl,
                                 allApps = uiState.allApps,
                                 onThemeChange = { viewModel.setThemeMode(it) },
                                 onFavoriteTextSizeChange = { viewModel.setFavoriteTextSize(it) },
                                 onFavoriteAlignmentChange = { viewModel.setFavoriteAlignment(it) },
                                 onShowDrawerIconsChange = { viewModel.setShowDrawerIcons(it) },
                                 onShowWidgetLabelsChange = { viewModel.setShowWidgetLabels(it) },
+                                onCalendarIcsUrlChange = { viewModel.setCalendarIcsUrl(it) },
                                 onBack = { currentScreen = Screen.HOME },
                                 modifier = Modifier.background(
                                     MaterialTheme.colorScheme.background.copy(alpha = 0.95f)
