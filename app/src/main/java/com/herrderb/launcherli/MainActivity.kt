@@ -206,6 +206,7 @@ class MainActivity : ComponentActivity() {
                             showIcons = uiState.showDrawerIcons,
                             onAppLaunch = { viewModel.launchApp(it) },
                             onAddFavorite = { viewModel.addFavoriteApp(it) },
+                            onRemoveFavorite = { viewModel.removeFavoriteApp(it) },
                             onBack = {
                                 currentScreen = Screen.HOME
                                 drawerProgress = 0f

@@ -6,7 +6,6 @@ import android.provider.Settings
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -18,27 +17,21 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.painter.BitmapPainter
-import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.DpOffset
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.herrderb.launcherli.data.AppInfo
-import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -49,12 +42,12 @@ fun AppDrawerScreen(
     showIcons: Boolean = false,
     onAppLaunch: (AppInfo) -> Unit,
     onAddFavorite: (AppInfo) -> Unit,
+    onRemoveFavorite: (AppInfo) -> Unit,
     onBack: () -> Unit,
     isFullyVisible: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val density = LocalDensity.current
     val focusManager = LocalFocusManager.current
     var searchQuery by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
@@ -145,54 +138,16 @@ fun AppDrawerScreen(
             ) {
                 items(filteredApps, key = { it.packageName }) { app ->
                     val isFavorite = app.packageName in favoriteSet
-                    var swipeOffsetX by remember { mutableFloatStateOf(0f) }
                     var showMenu by remember { mutableStateOf(false) }
-                    val swipeThreshold = with(density) { 100.dp.toPx() }
-                    val isPastThreshold = swipeOffsetX < -swipeThreshold
-                    val swipeFraction = ((-swipeOffsetX) / swipeThreshold).coerceIn(0f, 1.5f)
 
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .animateItem()
                     ) {
-                        if (!isFavorite && swipeOffsetX < 0f) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .matchParentSize()
-                                    .alpha(swipeFraction.coerceAtMost(1f)),
-                                contentAlignment = Alignment.CenterEnd
-                            ) {
-                                Text(
-                                    text = if (isPastThreshold) "Release to add" else "Add to favorites →",
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(end = 8.dp)
-                                )
-                            }
-                        }
-
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .offset { IntOffset(swipeOffsetX.roundToInt(), 0) }
-                                .pointerInput(isFavorite) {
-                                    detectHorizontalDragGestures(
-                                        onDragStart = { swipeOffsetX = 0f },
-                                        onHorizontalDrag = { _, delta ->
-                                            swipeOffsetX = (swipeOffsetX + delta).coerceAtMost(0f)
-                                        },
-                                        onDragEnd = {
-                                            if (!isFavorite && swipeOffsetX < -swipeThreshold) {
-                                                onAddFavorite(app)
-                                                showSnackbar = "★ ${app.label} added to favorites"
-                                            }
-                                            swipeOffsetX = 0f
-                                        },
-                                        onDragCancel = { swipeOffsetX = 0f }
-                                    )
-                                }
                                 .pointerInput(Unit) {
                                     detectTapGestures(
                                         onTap = {
@@ -249,6 +204,13 @@ fun AppDrawerScreen(
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 0.dp)
                             )
                             HorizontalDivider()
+                            DropdownMenuItem(
+                                text = { Text(if (isFavorite) "Remove from favorites" else "Add to favorites") },
+                                onClick = {
+                                    showMenu = false
+                                    if (isFavorite) onRemoveFavorite(app) else onAddFavorite(app)
+                                }
+                            )
                             DropdownMenuItem(
                                 text = { Text("App info") },
                                 onClick = {

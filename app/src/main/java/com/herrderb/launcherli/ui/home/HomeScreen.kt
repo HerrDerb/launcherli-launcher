@@ -390,7 +390,27 @@ fun HomeScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = startPadding, end = 24.dp, top = 16.dp, bottom = 16.dp),
+                    .padding(start = startPadding, end = 24.dp, top = 16.dp, bottom = 16.dp)
+                    .then(
+                        if (uiState.homescreenLocked) {
+                            Modifier.pointerInput(Unit) {
+                                var totalDrag = 0f
+                                detectHorizontalDragGestures(
+                                    onDragStart = { totalDrag = 0f },
+                                    onHorizontalDrag = { _, dragAmount ->
+                                        totalDrag += dragAmount
+                                        if (totalDrag < 0f) {
+                                            onDragDrawer((-totalDrag / size.width).coerceIn(0f, 1f))
+                                        }
+                                    },
+                                    onDragEnd = {
+                                        onDragDrawerEnd((-totalDrag / size.width).coerceIn(0f, 1f))
+                                        totalDrag = 0f
+                                    }
+                                )
+                            }
+                        } else Modifier
+                    ),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 itemsIndexed(
