@@ -29,6 +29,7 @@ import androidx.compose.material.icons.outlined.Alarm
 import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.Cloud
+import androidx.compose.material.icons.outlined.HourglassEmpty
 import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
@@ -164,7 +165,7 @@ fun HomeScreen(
                     ) {
                         uiState.weather?.let { weather ->
                             Column(horizontalAlignment = Alignment.Start) {
-                                if (uiState.showWidgetLabels && weather.stationName.isNotEmpty()) {
+                                if ((uiState.showWidgetLabels || weather.rateLimited) && weather.stationName.isNotEmpty()) {
                                     val cleaned = weather.stationName
                                         .replace(Regex("""\s*\([^)]+\)\s*$"""), "").trim()
                                     cleaned.split("/")
@@ -190,37 +191,46 @@ fun HomeScreen(
                                         .padding(end = 12.dp)
                                         .clickable(onClick = onWeatherClick)
                                 ) {
-                                    weather.forecastCondition?.let { forecast ->
-                                        val trend = forecast.rank - weather.condition.rank
-                                        if (trend != 0) {
-                                            Icon(
-                                                imageVector = if (trend < 0) Icons.Outlined.ArrowUpward
-                                                    else Icons.Outlined.ArrowDownward,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                                                modifier = Modifier.size(14.dp)
-                                            )
+                                    if (weather.rateLimited) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.HourglassEmpty,
+                                            contentDescription = "Rate limited",
+                                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    } else {
+                                        weather.forecastCondition?.let { forecast ->
+                                            val trend = forecast.rank - weather.condition.rank
+                                            if (trend != 0) {
+                                                Icon(
+                                                    imageVector = if (trend < 0) Icons.Outlined.ArrowUpward
+                                                        else Icons.Outlined.ArrowDownward,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                            }
                                         }
+                                        Icon(
+                                            imageVector = when (weather.condition) {
+                                                WeatherCondition.CLEAR -> Icons.Outlined.WbSunny
+                                                WeatherCondition.CLOUDY -> Icons.Outlined.Cloud
+                                                WeatherCondition.SNOWY -> Icons.Outlined.AcUnit
+                                                WeatherCondition.RAINY -> Icons.Outlined.WaterDrop
+                                            },
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onBackground,
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .padding(end = 6.dp)
+                                        )
+                                        Text(
+                                            text = "${weather.temperature.roundToInt()}°",
+                                            fontSize = 20.sp,
+                                            fontWeight = FontWeight.Light,
+                                            color = MaterialTheme.colorScheme.onBackground
+                                        )
                                     }
-                                    Icon(
-                                        imageVector = when (weather.condition) {
-                                            WeatherCondition.CLEAR -> Icons.Outlined.WbSunny
-                                            WeatherCondition.CLOUDY -> Icons.Outlined.Cloud
-                                            WeatherCondition.SNOWY -> Icons.Outlined.AcUnit
-                                            WeatherCondition.RAINY -> Icons.Outlined.WaterDrop
-                                        },
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onBackground,
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .padding(end = 6.dp)
-                                    )
-                                    Text(
-                                        text = "${weather.temperature.roundToInt()}°",
-                                        fontSize = 20.sp,
-                                        fontWeight = FontWeight.Light,
-                                        color = MaterialTheme.colorScheme.onBackground
-                                    )
                                 }
                             }
                         }

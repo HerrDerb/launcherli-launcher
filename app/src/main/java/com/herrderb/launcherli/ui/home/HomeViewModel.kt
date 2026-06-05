@@ -135,7 +135,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     latitude = location.latitude,
                     longitude = location.longitude
                 )
-            )?.copy(stationName = location.cityName)
+            )?.let { data ->
+                if (data.rateLimited) data.copy(stationName = "Rate limit hit")
+                else data.copy(stationName = location.cityName)
+            }
 
         if (weather != null) {
             _uiState.update { it.copy(weather = weather) }
