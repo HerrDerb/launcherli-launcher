@@ -41,7 +41,18 @@ class HydroProvider(private val context: Context) {
             }
         }
 
+    // (lat, lon) the station was resolved for, plus the (key, label). The nearest
+    // station never changes for a fixed location, so we avoid re-reading and
+    // re-parsing the whole GeoJSON on every refresh.
+    @Volatile private var cachedStation: Triple<Double, Double, Pair<String, String>>? = null
+
     private fun findNearestStation(latitude: Double, longitude: Double): Pair<String, String>? {
+        cachedStation?.let { (cachedLat, cachedLon, station) ->
+            if (abs(latitude - cachedLat) < 0.01 && abs(longitude - cachedLon) < 0.01) {
+                return station
+            }
+        }
+
         val json = getGeoJson() ?: return null
         val geoJson = JSONObject(json)
         val features = geoJson.getJSONArray("features")
@@ -72,7 +83,11 @@ class HydroProvider(private val context: Context) {
             }
         }
 
-        return if (nearestKey != null) Pair(nearestKey, nearestLabel ?: nearestKey) else null
+        return if (nearestKey != null) {
+            val result = Pair(nearestKey, nearestLabel ?: nearestKey)
+            cachedStation = Triple(latitude, longitude, result)
+            result
+        } else null
     }
 
     private fun fetchCurrentTemperature(stationKey: String): Double? {

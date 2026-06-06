@@ -9,8 +9,7 @@ import android.os.UserManager
 data class AppInfo(
     val label: String,
     val packageName: String,
-    val activityName: String,
-    val icon: Drawable? = null
+    val activityName: String
 )
 
 class AppRepository(private val context: Context) {
@@ -25,11 +24,28 @@ class AppRepository(private val context: Context) {
                 AppInfo(
                     label = info.label.toString(),
                     packageName = info.applicationInfo.packageName,
-                    activityName = info.componentName.className,
-                    icon = info.getBadgedIcon(0)
+                    activityName = info.componentName.className
                 )
             }
             .sortedBy { it.label.lowercase() }
+    }
+
+    /**
+     * Loads a single app's badged icon on demand. Kept separate from
+     * [getInstalledApps] so icons are only decoded for apps actually shown
+     * (and only when the drawer-icons setting is on), not eagerly for everything.
+     */
+    fun loadIcon(packageName: String, activityName: String): Drawable? {
+        return try {
+            val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
+            val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
+            val profile = userManager.userProfiles.first()
+            launcherApps.getActivityList(packageName, profile)
+                .firstOrNull { it.componentName.className == activityName }
+                ?.getBadgedIcon(0)
+        } catch (_: Exception) {
+            null
+        }
     }
 
     fun launchApp(appInfo: AppInfo) {

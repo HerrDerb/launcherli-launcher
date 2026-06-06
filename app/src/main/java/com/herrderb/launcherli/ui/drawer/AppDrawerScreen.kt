@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.input.pointer.pointerInput
@@ -33,7 +34,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.herrderb.launcherli.data.AppInfo
+import com.herrderb.launcherli.data.AppRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -243,15 +247,21 @@ private fun DrawerAppRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (showIcons && app.icon != null) {
-                val bitmap = remember(app.packageName) {
-                    app.icon.toBitmap(48, 48).asImageBitmap()
+            if (showIcons) {
+                // Decode the icon lazily on IO, only for this visible row.
+                val iconBitmap by produceState<ImageBitmap?>(null, app.packageName) {
+                    value = withContext(Dispatchers.IO) {
+                        AppRepository(context).loadIcon(app.packageName, app.activityName)
+                            ?.toBitmap(48, 48)?.asImageBitmap()
+                    }
                 }
-                Image(
-                    painter = BitmapPainter(bitmap),
-                    contentDescription = null,
-                    modifier = Modifier.size(32.dp)
-                )
+                iconBitmap?.let { bitmap ->
+                    Image(
+                        painter = BitmapPainter(bitmap),
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
             }
             Text(
                 text = app.label,

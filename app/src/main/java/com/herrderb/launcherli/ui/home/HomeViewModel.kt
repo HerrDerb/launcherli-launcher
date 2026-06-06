@@ -16,8 +16,9 @@ import com.herrderb.launcherli.data.hydro.HydroProvider
 import com.herrderb.launcherli.data.calendar.CalendarProvider
 import com.herrderb.launcherli.ui.theme.ThemeMode
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -26,6 +27,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.concurrent.TimeUnit
 
 data class HomeUiState(
     val favoriteApps: List<AppInfo> = emptyList(),
@@ -59,12 +61,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
-    private val refreshInterval = 15 * 60 * 1000L
+    private val refreshInterval = TimeUnit.MINUTES.toMillis(15)
     private var lastRefresh = 0L
-    private val calendarRefreshInterval = 30 * 60 * 1000L
+    private val calendarRefreshInterval = TimeUnit.MINUTES.toMillis(30)
     private var lastCalendarRefresh = 0L
     private val refreshMutex = Mutex()
-    private var cachedLocationResult: LocationInfo? = null
 
     init {
         viewModelScope.launch {
@@ -118,45 +119,43 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
-        // Refetch appointments whenever the link changes, then on a fixed timer.
+        // Initial + on-change appointment fetch (cheap; only fires when the link changes).
         viewModelScope.launch {
             settingsRepository.calendarIcsUrl.distinctUntilChanged().collect { url ->
                 refreshCalendar(url)
             }
         }
-        viewModelScope.launch {
-            while (true) {
-                delay(calendarRefreshInterval)
-                refreshCalendar(settingsRepository.calendarIcsUrl.first())
-            }
-        }
 
-        // Refresh weather and hydro every 5 minutes
-        viewModelScope.launch {
-            while (true) {
-                lastRefresh = System.currentTimeMillis()
-                refreshWidgets()
-                delay(refreshInterval)
-            }
-        }
-
-        // On resume, refresh immediately if interval has elapsed
-        val lifecycleObserver = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                if (System.currentTimeMillis() - lastCalendarRefresh >= calendarRefreshInterval) {
-                    viewModelScope.launch {
-                        refreshCalendar(settingsRepository.calendarIcsUrl.first())
-                    }
-                }
+        // Periodic refresh runs ONLY while the launcher is in the foreground.
+        // repeatOnLifecycle cancels these loops when the app is backgrounded and
+        // restarts them on return, so no location/network work happens while the
+        // user is in other apps. On each return we refresh once if data is stale,
+        // then poll at the fixed interval until backgrounded again.
+        val appLifecycle = ProcessLifecycleOwner.get()
+        appLifecycle.lifecycleScope.launch {
+            appLifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 if (System.currentTimeMillis() - lastRefresh >= refreshInterval) {
-                    viewModelScope.launch {
-                        refreshWidgets()
-                        lastRefresh = System.currentTimeMillis()
-                    }
+                    refreshWidgets()
+                    lastRefresh = System.currentTimeMillis()
+                }
+                while (true) {
+                    delay(refreshInterval)
+                    refreshWidgets()
+                    lastRefresh = System.currentTimeMillis()
                 }
             }
         }
-        ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
+        appLifecycle.lifecycleScope.launch {
+            appLifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                if (System.currentTimeMillis() - lastCalendarRefresh >= calendarRefreshInterval) {
+                    refreshCalendar(settingsRepository.calendarIcsUrl.first())
+                }
+                while (true) {
+                    delay(calendarRefreshInterval)
+                    refreshCalendar(settingsRepository.calendarIcsUrl.first())
+                }
+            }
+        }
     }
 
     private suspend fun refreshWidgets() = refreshMutex.withLock {

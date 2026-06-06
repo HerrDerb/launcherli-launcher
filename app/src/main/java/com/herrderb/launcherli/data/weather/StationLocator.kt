@@ -10,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlin.math.abs
 import kotlin.math.asin
 import kotlin.math.cos
 import kotlin.math.pow
@@ -26,17 +27,28 @@ class StationLocator(private val context: Context) {
 
     private data class Station(val id: String, val lat: Double, val lon: Double, val name: String)
 
+    // Last resolved location. Reverse-geocoding is comparatively expensive, so we
+    // reuse the previous result while the device hasn't meaningfully moved (~1 km),
+    // and fall back to it if no fresh fix is available.
+    @Volatile private var cached: LocationInfo? = null
+
     suspend fun getLocation(): LocationInfo? = withContext(Dispatchers.IO) {
-        val coords = getLastKnownLocation() ?: return@withContext null
+        val coords = getLastKnownLocation() ?: return@withContext cached
         val (lat, lon) = coords
 
+        cached?.let { previous ->
+            if (abs(lat - previous.latitude) < 0.01 && abs(lon - previous.longitude) < 0.01) {
+                return@withContext previous
+            }
+        }
+
         val (inSwitzerland, cityName) = resolveAddress(lat, lon)
-            LocationInfo(
-                latitude = lat,
-                longitude = lon,
-                inSwitzerland = inSwitzerland,
-                cityName = cityName.orEmpty()
-            )
+        LocationInfo(
+            latitude = lat,
+            longitude = lon,
+            inSwitzerland = inSwitzerland,
+            cityName = cityName.orEmpty()
+        ).also { cached = it }
     }
 
     private fun resolveAddress(lat: Double, lon: Double): Pair<Boolean, String?> {
