@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat.registerReceiver
 import com.herrderb.launcherli.data.AppInfo
+import com.herrderb.launcherli.data.calendar.CalendarProvider
 import com.herrderb.launcherli.data.weather.WeatherCondition
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -378,7 +379,19 @@ fun HomeScreen(
                     Row(modifier = Modifier.fillMaxWidth()) {
                         Spacer(modifier = Modifier.weight(1f))
                         val todayCount = uiState.todayAppointmentStarts.count { it > nowMs }
-                        Column(horizontalAlignment = Alignment.End) {
+                        // If the feed is a Proton Calendar export and the app is
+                        // installed, tapping the counts opens Proton Calendar.
+                        val calendarLaunch = remember(uiState.calendarProvider) {
+                            if (uiState.calendarProvider == CalendarProvider.PROTON)
+                                context.packageManager.getLaunchIntentForPackage("me.proton.android.calendar")
+                            else null
+                        }
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            modifier = if (calendarLaunch != null) {
+                                Modifier.clickable { context.startActivity(calendarLaunch) }
+                            } else Modifier
+                        ) {
                             Text(
                                 text = "Today · $todayCount",
                                 fontSize = 13.sp,

@@ -10,12 +10,19 @@ import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
+/** Which app generated the feed, derived from the iCal PRODID line. */
+enum class CalendarProvider { PROTON, OTHER }
+
 /**
  * Event start times (epoch millis) for today and tomorrow. Today's list lets the
  * UI count down live as `now` passes each start, without re-fetching. All-day
  * events get an end-of-day instant so they stay counted until midnight.
  */
-data class AppointmentTimes(val todayStarts: List<Long>, val tomorrowStarts: List<Long>)
+data class AppointmentTimes(
+    val todayStarts: List<Long>,
+    val tomorrowStarts: List<Long>,
+    val provider: CalendarProvider
+)
 
 /**
  * Reads a public iCalendar (.ics) subscription URL — any standard "share via
@@ -79,7 +86,14 @@ class IcsCalendarRepository {
             if (occursOn(ev, today)) todayStarts.add(instantOn(today, ev.startTime, zone))
             if (occursOn(ev, tomorrow)) tomorrowStarts.add(instantOn(tomorrow, ev.startTime, zone))
         }
-        return AppointmentTimes(todayStarts.sorted(), tomorrowStarts.sorted())
+        return AppointmentTimes(todayStarts.sorted(), tomorrowStarts.sorted(), detectProvider(unfolded))
+    }
+
+    /** Reads the RFC 5545 PRODID line to identify the generating app. */
+    private fun detectProvider(ics: String): CalendarProvider {
+        val prodid = Regex("(?im)^PRODID:(.*)$").find(ics)?.groupValues?.get(1).orEmpty()
+        return if (prodid.contains("Proton", ignoreCase = true)) CalendarProvider.PROTON
+        else CalendarProvider.OTHER
     }
 
     /** Epoch millis for an occurrence; all-day (null time) → end of that day. */

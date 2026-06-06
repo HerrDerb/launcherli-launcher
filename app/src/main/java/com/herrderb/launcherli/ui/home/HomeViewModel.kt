@@ -13,6 +13,7 @@ import com.herrderb.launcherli.data.weather.StationLocator
 import com.herrderb.launcherli.data.weather.LocationInfo
 import com.herrderb.launcherli.data.hydro.HydroData
 import com.herrderb.launcherli.data.hydro.HydroProvider
+import com.herrderb.launcherli.data.calendar.CalendarProvider
 import com.herrderb.launcherli.ui.theme.ThemeMode
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -41,7 +42,8 @@ data class HomeUiState(
     val calendarIcsUrl: String = "",
     val todayAppointmentStarts: List<Long> = emptyList(),
     val tomorrowAppointments: Int = 0,
-    val appointmentsLoaded: Boolean = false
+    val appointmentsLoaded: Boolean = false,
+    val calendarProvider: CalendarProvider = CalendarProvider.OTHER
 )
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
@@ -173,7 +175,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             it.copy(
                 todayAppointmentStarts = times.todayStarts,
                 tomorrowAppointments = times.tomorrowStarts.size,
-                appointmentsLoaded = true
+                appointmentsLoaded = true,
+                calendarProvider = times.provider
             )
         }
     }
