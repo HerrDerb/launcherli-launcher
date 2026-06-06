@@ -138,7 +138,7 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onDragDrawerEnd = { progress ->
                                     isDraggingDrawer = false
-                                    if (progress > 0.6f) {
+                                    if (progress > 0.3f) {
                                         currentScreen = Screen.DRAWER
                                         drawerProgress = 1f
                                     } else {
