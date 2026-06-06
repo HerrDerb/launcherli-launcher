@@ -1,66 +1,45 @@
 package com.herrderb.launcherli.ui.home
 
-import android.R
-import android.app.Notification
-import android.content.BroadcastReceiver
-import android.content.ContentValues.TAG
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.util.Log
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.basicMarquee
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import kotlin.math.roundToInt
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.LastBaseline
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AcUnit
-import androidx.compose.material.icons.outlined.Alarm
-import androidx.compose.material.icons.outlined.ArrowDownward
-import androidx.compose.material.icons.outlined.ArrowUpward
-import androidx.compose.material.icons.outlined.Cloud
-import androidx.compose.material.icons.outlined.HourglassEmpty
-import androidx.compose.material.icons.outlined.WaterDrop
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.LockOpen
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.*
-import androidx.compose.material.icons.outlined.WbSunny
-import androidx.compose.material.icons.outlined.Water
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat.registerReceiver
 import com.herrderb.launcherli.data.AppInfo
-import com.herrderb.launcherli.data.calendar.CalendarProvider
-import com.herrderb.launcherli.data.weather.WeatherCondition
-import kotlinx.coroutines.delay
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import kotlin.math.roundToInt
+import com.herrderb.launcherli.ui.home.widgets.CalendarWidget
+import com.herrderb.launcherli.ui.home.widgets.ClockWidget
+import com.herrderb.launcherli.ui.home.widgets.HydroWidget
+import com.herrderb.launcherli.ui.home.widgets.WeatherWidget
+import com.herrderb.launcherli.ui.home.widgets.rememberClockState
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
     uiState: HomeUiState,
@@ -77,7 +56,17 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     var showBottomSheet by remember { mutableStateOf(false) }
-    val context = LocalContext.current
+    val density = LocalDensity.current
+    val clock = rememberClockState()
+
+    // Horizontal positions of the clock glyphs, used to align the date row and
+    // the favorites column under the visible edges of the time text.
+    var clockStartX by remember { mutableFloatStateOf(0f) }
+    var clockEndX by remember { mutableFloatStateOf(0f) }
+    var clockLineLeft by remember { mutableFloatStateOf(0f) }
+    var clockLineRight by remember { mutableFloatStateOf(0f) }
+    var dateRowStartX by remember { mutableFloatStateOf(0f) }
+    var dateRowWidth by remember { mutableFloatStateOf(0f) }
 
     Box(
         modifier = modifier
@@ -86,73 +75,9 @@ fun HomeScreen(
                 onClick = {},
                 onLongClick = { showBottomSheet = true }
             )
-            .pointerInput(Unit) {
-                var totalDrag = 0f
-                detectHorizontalDragGestures(
-                    onDragStart = { totalDrag = 0f },
-                    onHorizontalDrag = { _, dragAmount ->
-                        totalDrag += dragAmount
-                        if (totalDrag < 0f) {
-                            val progress = (-totalDrag / size.width).coerceIn(0f, 1f)
-                            onDragDrawer(progress)
-                        }
-                    },
-                    onDragEnd = {
-                        val progress = (-totalDrag / size.width).coerceIn(0f, 1f)
-                        onDragDrawerEnd(progress)
-                        totalDrag = 0f
-                    },
-                    onDragCancel = {
-                        val progress = (-totalDrag / size.width).coerceIn(0f, 1f)
-                        onDragDrawerEnd(progress)
-                        totalDrag = 0f
-                    }
-                )
-            }
+            .openDrawerOnDrag(onDragDrawer, onDragDrawerEnd)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Weather + Digital clock row
-            var currentTime by remember { mutableStateOf("") }
-            var currentDate by remember { mutableStateOf("") }
-            var nextAlarmText by remember { mutableStateOf("") }
-            var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
-            var clockStartX by remember { mutableFloatStateOf(0f) }
-            var clockEndX by remember { mutableFloatStateOf(0f) }
-            var clockLineLeft by remember { mutableFloatStateOf(0f) }
-            var clockLineRight by remember { mutableFloatStateOf(0f) }
-            var dateRowStartX by remember { mutableFloatStateOf(0f) }
-            var dateRowWidth by remember { mutableFloatStateOf(0f) }
-            val density = LocalDensity.current
-            val alarmManager = remember {
-                context.getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
-            }
-            DisposableEffect(Unit) {
-                val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
-                val dateFormatter = SimpleDateFormat("EEE. d MMM", Locale.getDefault())
-                val alarmFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
-
-                fun updateTime() {
-                    val now = System.currentTimeMillis()
-                    nowMs = now
-                    val date = Date(now)
-                    currentTime = timeFormatter.format(date)
-                    currentDate = dateFormatter.format(date)
-                    val nextAlarm = alarmManager.nextAlarmClock
-                    nextAlarmText = if (nextAlarm != null && nextAlarm.triggerTime - now <= 24 * 60 * 60 * 1000L) {
-                        alarmFormatter.format(Date(nextAlarm.triggerTime))} else ""
-                }
-
-                val receiver = object : BroadcastReceiver() {
-                    override fun onReceive(p0: Context?, p1: Intent?) {
-                        updateTime()
-                    }
-                }
-
-                updateTime()
-                val intentFilter = IntentFilter(Intent.ACTION_TIME_TICK)
-                context.registerReceiver(receiver, intentFilter)
-                onDispose { context.unregisterReceiver(receiver) }
-            }
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -164,166 +89,37 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Weather widget (left side, clickable)
-                    Box(
+                    WeatherWidget(
+                        weather = uiState.weather,
+                        showWidgetLabels = uiState.showWidgetLabels,
+                        onClick = onWeatherClick,
                         modifier = Modifier
                             .weight(1f)
-                            .alignBy(LastBaseline),
-                        contentAlignment = Alignment.CenterEnd
-                    ) {
-                        uiState.weather?.let { weather ->
-                            Column(horizontalAlignment = Alignment.Start) {
-                                if ((uiState.showWidgetLabels || weather.rateLimited) && weather.stationName.isNotEmpty()) {
-                                    val cleaned = weather.stationName
-                                        .replace(Regex("""\s*\([^)]+\)\s*$"""), "").trim()
-                                    cleaned.split("/")
-                                        .map { it.trim() }
-                                        .filter { it.isNotBlank() }
-                                        .forEach { line ->
-                                            Text(
-                                                text = line,
-                                                fontSize = 11.sp,
-                                                lineHeight = 13.sp,
-                                                fontWeight = FontWeight.Light,
-                                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
-                                                maxLines = 1,
-                                                modifier = Modifier
-                                                    .padding(end = 12.dp)
-                                                    .basicMarquee(velocity = 20.dp)
-                                            )
-                                        }
-                                }
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .padding(end = 12.dp)
-                                        .clickable(onClick = onWeatherClick)
-                                ) {
-                                    if (weather.rateLimited) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.HourglassEmpty,
-                                            contentDescription = "Rate limited",
-                                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                    } else {
-                                        weather.forecastCondition?.let { forecast ->
-                                            val trend = forecast.rank - weather.condition.rank
-                                            if (trend != 0) {
-                                                Icon(
-                                                    imageVector = if (trend < 0) Icons.Outlined.ArrowUpward
-                                                        else Icons.Outlined.ArrowDownward,
-                                                    contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                                                    modifier = Modifier.size(14.dp)
-                                                )
-                                            }
-                                        }
-                                        Icon(
-                                            imageVector = when (weather.condition) {
-                                                WeatherCondition.CLEAR -> Icons.Outlined.WbSunny
-                                                WeatherCondition.CLOUDY -> Icons.Outlined.Cloud
-                                                WeatherCondition.SNOWY -> Icons.Outlined.AcUnit
-                                                WeatherCondition.RAINY -> Icons.Outlined.WaterDrop
-                                            },
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onBackground,
-                                            modifier = Modifier
-                                                .size(24.dp)
-                                                .padding(end = 6.dp)
-                                        )
-                                        Text(
-                                            text = "${weather.temperature.roundToInt()}°",
-                                            fontSize = 20.sp,
-                                            fontWeight = FontWeight.Light,
-                                            color = MaterialTheme.colorScheme.onBackground
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Clock time (center)
-                    Text(
-                        text = currentTime,
-                        fontSize = 64.sp,
-                        fontWeight = FontWeight.Light,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        onTextLayout = { layout ->
-                            if (layout.lineCount > 0) {
-                                clockLineLeft = layout.getLineLeft(0)
-                                clockLineRight = layout.getLineRight(0)
-                            }
-                        },
-                        modifier = Modifier
                             .alignBy(LastBaseline)
-                            .onGloballyPositioned { coords ->
-                                clockStartX = coords.positionInRoot().x
-                                clockEndX = clockStartX + coords.size.width
-                            }
-                            .clickable {
-                                val intent =
-                                    android.content.Intent(android.provider.AlarmClock.ACTION_SHOW_ALARMS)
-                                try {
-                                    context.startActivity(intent)
-                                } catch (_: Exception) {
-                                }
-                            }
                     )
 
-                    // Hydro widget (right side, clickable)
-                    Box(
+                    // Clock time (center)
+                    ClockWidget(
+                        time = clock.time,
+                        onLineMeasured = { left, right ->
+                            clockLineLeft = left
+                            clockLineRight = right
+                        },
+                        onPositioned = { startX, endX ->
+                            clockStartX = startX
+                            clockEndX = endX
+                        },
+                        modifier = Modifier.alignBy(LastBaseline)
+                    )
+
+                    HydroWidget(
+                        hydro = uiState.hydro,
+                        showWidgetLabels = uiState.showWidgetLabels,
+                        onClick = onHydroClick,
                         modifier = Modifier
                             .weight(1f)
-                            .alignBy(LastBaseline),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        uiState.hydro?.let { hydro ->
-                            Column(horizontalAlignment = Alignment.Start) {
-                                val hydroLabel = hydro.stationLabel.takeIf { it.isNotBlank() }
-                                if (uiState.showWidgetLabels && hydroLabel != null) {
-                                    hydroLabel.split("-")
-                                        .map { it.trim() }
-                                        .filter { it.isNotBlank() }
-                                        .forEach { line ->
-                                            Text(
-                                                text = line,
-                                                fontSize = 11.sp,
-                                                lineHeight = 13.sp,
-                                                fontWeight = FontWeight.Light,
-                                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
-                                                maxLines = 1,
-                                                modifier = Modifier
-                                                    .padding(start = 12.dp)
-                                                    .basicMarquee(velocity = 20.dp)
-                                            )
-                                        }
-                                }
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .padding(start = 12.dp)
-                                        .clickable(onClick = onHydroClick)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Water,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onBackground,
-                                        modifier = Modifier
-                                            .size(20.dp)
-                                            .padding(end = 4.dp)
-                                    )
-                                    Text(
-                                        text = "${"%.1f".format(hydro.temperature)}°",
-                                        fontSize = 20.sp,
-                                        fontWeight = FontWeight.Light,
-                                        color = MaterialTheme.colorScheme.onBackground
-                                    )
-                                }
-                            }
-                        }
-                    }
+                            .alignBy(LastBaseline)
+                    )
                 }
 
                 // Date + alarm row (date aligned with clock left, alarm with clock right)
@@ -336,16 +132,13 @@ fun HomeScreen(
                         },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val datePad = if (clockStartX > 0f && dateRowWidth > 0f) {
-                        with(density) { (clockStartX + clockLineLeft - dateRowStartX).coerceAtLeast(0f).toDp() }
-                    } else 0.dp
                     val alarmEndPad = if (clockEndX > 0f && dateRowWidth > 0f) {
                         val visibleClockRight = clockStartX + clockLineRight
                         with(density) { (dateRowStartX + dateRowWidth - visibleClockRight).coerceAtLeast(0f).toDp() }
                     } else 0.dp
 
                     Spacer(modifier = Modifier.weight(1f))
-                    if (nextAlarmText.isNotEmpty()) {
+                    if (clock.nextAlarm.isNotEmpty()) {
                         Icon(
                             imageVector = Icons.Outlined.Alarm,
                             contentDescription = null,
@@ -354,7 +147,7 @@ fun HomeScreen(
                         )
                         Spacer(modifier = Modifier.width(3.dp))
                         Text(
-                            text = nextAlarmText,
+                            text = clock.nextAlarm,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Light,
                             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
@@ -362,7 +155,7 @@ fun HomeScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                     }
                     Text(
-                        text = currentDate,
+                        text = clock.date,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Light,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
@@ -376,37 +169,13 @@ fun HomeScreen(
                         val visibleClockRight = clockStartX + clockLineRight
                         with(density) { (dateRowStartX + dateRowWidth - visibleClockRight).coerceAtLeast(0f).toDp() }
                     } else 0.dp
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        Spacer(modifier = Modifier.weight(1f))
-                        val todayCount = uiState.todayAppointmentStarts.count { it > nowMs }
-                        // If the feed is a Proton Calendar export and the app is
-                        // installed, tapping the counts opens Proton Calendar.
-                        val calendarLaunch = remember(uiState.calendarProvider) {
-                            if (uiState.calendarProvider == CalendarProvider.PROTON)
-                                context.packageManager.getLaunchIntentForPackage("me.proton.android.calendar")
-                            else null
-                        }
-                        Column(
-                            horizontalAlignment = Alignment.End,
-                            modifier = if (calendarLaunch != null) {
-                                Modifier.clickable { context.startActivity(calendarLaunch) }
-                            } else Modifier
-                        ) {
-                            Text(
-                                text = "Today · $todayCount",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Light,
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
-                            )
-                            Text(
-                                text = "Tomorrow · ${uiState.tomorrowAppointments}",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Light,
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(apptEndPad))
-                    }
+                    CalendarWidget(
+                        todayStarts = uiState.todayAppointmentStarts,
+                        tomorrowCount = uiState.tomorrowAppointments,
+                        nowMs = clock.nowMs,
+                        provider = uiState.calendarProvider,
+                        endPad = apptEndPad
+                    )
                 }
             }
 
@@ -423,286 +192,31 @@ fun HomeScreen(
 
             // Favorite apps list (bottom - text only)
             Spacer(modifier = Modifier.weight(1f))
-            val itemHeight = 40.dp
-            var draggedIndex by remember { mutableStateOf<Int?>(null) }
-            var dragOffsetY by remember { mutableFloatStateOf(0f) }
-
-            // Unlock mode indicator
-            if (!uiState.homescreenLocked) {
-                Text(
-                    text = "✎ Editing — tap below widgets to lock",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
-                        .padding(top = 4.dp)
-                )
-            }
-
             val startPadding = if (uiState.favoriteAlignment == "centered" && clockStartX > 0f) {
                 with(density) { (clockStartX + clockLineLeft).toDp() }
             } else 24.dp
-
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = startPadding, end = 24.dp, top = 16.dp, bottom = 16.dp)
-                    .then(
-                        if (uiState.homescreenLocked) {
-                            Modifier.pointerInput(Unit) {
-                                var totalDrag = 0f
-                                detectHorizontalDragGestures(
-                                    onDragStart = { totalDrag = 0f },
-                                    onHorizontalDrag = { _, dragAmount ->
-                                        totalDrag += dragAmount
-                                        if (totalDrag < 0f) {
-                                            onDragDrawer((-totalDrag / size.width).coerceIn(0f, 1f))
-                                        }
-                                    },
-                                    onDragEnd = {
-                                        onDragDrawerEnd((-totalDrag / size.width).coerceIn(0f, 1f))
-                                        totalDrag = 0f
-                                    },
-                                    onDragCancel = {
-                                        onDragDrawerEnd((-totalDrag / size.width).coerceIn(0f, 1f))
-                                        totalDrag = 0f
-                                    }
-                                )
-                            }
-                        } else Modifier
-                    ),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                itemsIndexed(
-                    items = uiState.favoriteApps,
-                    key = { _, app -> app.packageName }
-                ) { index, app ->
-                    var swipeOffsetX by remember { mutableFloatStateOf(0f) }
-                    val swipeThreshold = with(density) { 100.dp.toPx() }
-                    val isSwiped = swipeOffsetX < -swipeThreshold
-                    val swipeFraction = ((-swipeOffsetX) / swipeThreshold).coerceIn(0f, 1.5f)
-
-                    val animatedColor by animateColorAsState(
-                        targetValue = if (isSwiped) MaterialTheme.colorScheme.error
-                            else MaterialTheme.colorScheme.onBackground,
-                        label = "swipe_color"
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .animateItem()
-                    ) {
-                        // Remove indicator behind the item
-                        if (!uiState.homescreenLocked && swipeOffsetX < 0f) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .matchParentSize()
-                                    .alpha(swipeFraction.coerceAtMost(1f)),
-                                contentAlignment = Alignment.CenterEnd
-                            ) {
-                                Text(
-                                    text = if (isSwiped) "Release to remove" else "← Remove",
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.padding(end = 8.dp)
-                                )
-                            }
-                        }
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .offset { IntOffset(swipeOffsetX.roundToInt(), 0) }
-                                .then(
-                                    if (!uiState.homescreenLocked) {
-                                        Modifier.pointerInput(uiState.favoriteApps) {
-                                            detectHorizontalDragGestures(
-                                                onDragStart = { swipeOffsetX = 0f },
-                                                onHorizontalDrag = { _, dragAmount ->
-                                                    swipeOffsetX =
-                                                        (swipeOffsetX + dragAmount).coerceAtMost(0f)
-                                                },
-                                                onDragEnd = {
-                                                    if (swipeOffsetX < -swipeThreshold) {
-                                                        onRemoveFavorite(app)
-                                                    }
-                                                    swipeOffsetX = 0f
-                                                },
-                                                onDragCancel = {
-                                                    swipeOffsetX = 0f
-                                                }
-                                            )
-                                        }
-                                    } else Modifier
-                                ),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = app.label,
-                                fontSize = uiState.favoriteTextSize.sp,
-                                fontWeight = FontWeight.Normal,
-                                color = animatedColor,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .combinedClickable(
-                                        onClick = { onAppLaunch(app) }
-                                    )
-                                    .padding(vertical = 4.dp)
-                            )
-                            if (!uiState.homescreenLocked && swipeOffsetX == 0f) {
-                                    Text(
-                                        text = "≡",
-                                        fontSize = 22.sp,
-                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
-                                    modifier = Modifier
-                                        .padding(start = 12.dp)
-                                        .pointerInput(uiState.favoriteApps) {
-                                            detectDragGestures(
-                                                onDragStart = {
-                                                    draggedIndex = index
-                                                    dragOffsetY = 0f
-                                                },
-                                                onDrag = { _, offset ->
-                                                    dragOffsetY += offset.y
-                                                    val itemHeightPx =
-                                                        with(density) { (itemHeight + 12.dp).toPx() }
-                                                    val moveBy =
-                                                        (dragOffsetY / itemHeightPx).toInt()
-                                                    if (moveBy != 0 && draggedIndex != null) {
-                                                        val fromIndex = draggedIndex!!
-                                                        val toIndex = (fromIndex + moveBy)
-                                                            .coerceIn(
-                                                                0,
-                                                                uiState.favoriteApps.size - 1
-                                                            )
-                                                        if (fromIndex != toIndex) {
-                                                            val list =
-                                                                uiState.favoriteApps.toMutableList()
-                                                            val item2 = list.removeAt(fromIndex)
-                                                            list.add(toIndex, item2)
-                                                            onReorderFavorites(list)
-                                                            draggedIndex = toIndex
-                                                            dragOffsetY = 0f
-                                                        }
-                                                    }
-                                                },
-                                                onDragEnd = {
-                                                    draggedIndex = null
-                                                    dragOffsetY = 0f
-                                                },
-                                                onDragCancel = {
-                                                    draggedIndex = null
-                                                    dragOffsetY = 0f
-                                                }
-                                            )
-                                        }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+            FavoritesList(
+                favoriteApps = uiState.favoriteApps,
+                homescreenLocked = uiState.homescreenLocked,
+                favoriteTextSize = uiState.favoriteTextSize,
+                startPadding = startPadding,
+                onAppLaunch = onAppLaunch,
+                onRemoveFavorite = onRemoveFavorite,
+                onReorderFavorites = onReorderFavorites,
+                onDragDrawer = onDragDrawer,
+                onDragDrawerEnd = onDragDrawerEnd
+            )
             Spacer(modifier = Modifier.weight(1f))
         }
     }
 
     // Bottom sheet menu on long press
     if (showBottomSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showBottomSheet = false },
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .combinedClickable(onClick = {
-                            onToggleLock()
-                            showBottomSheet = false
-                        })
-                        .padding(vertical = 14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = if (uiState.homescreenLocked) Icons.Outlined.LockOpen else Icons.Outlined.Lock,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        text = if (uiState.homescreenLocked) "Unlock Homescreen" else "Lock Homescreen",
-                        fontSize = 18.sp,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                HorizontalDivider(
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .combinedClickable(onClick = {
-                            onOpenSettings()
-                            showBottomSheet = false
-                        })
-                        .padding(vertical = 14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Settings,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        text = "Settings",
-                        fontSize = 18.sp,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                HorizontalDivider(
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .combinedClickable(onClick = {
-                            val intent = android.content.Intent(
-                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                android.net.Uri.parse("package:com.herrderb.launcherli")
-                            )
-                            context.startActivity(intent)
-                            showBottomSheet = false
-                        })
-                        .padding(vertical = 14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Info,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        text = "App Info",
-                        fontSize = 18.sp,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-        }
+        HomeMenuSheet(
+            homescreenLocked = uiState.homescreenLocked,
+            onToggleLock = onToggleLock,
+            onOpenSettings = onOpenSettings,
+            onDismiss = { showBottomSheet = false }
+        )
     }
 }
