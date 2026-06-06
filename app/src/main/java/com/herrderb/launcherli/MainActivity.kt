@@ -22,8 +22,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.delay
 import com.herrderb.launcherli.ui.drawer.AppDrawerScreen
 import com.herrderb.launcherli.ui.home.HomeScreen
 import com.herrderb.launcherli.ui.home.HomeViewModel
@@ -32,6 +37,7 @@ import com.herrderb.launcherli.ui.theme.LauncherliTheme
 
 class MainActivity : ComponentActivity() {
 
+    @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -103,10 +109,27 @@ class MainActivity : ComponentActivity() {
                     drawerProgress = 0f
                 }
 
+                // On the home screen, fade the status bar out after a moment for a
+                // cleaner look; show it again on the drawer and settings screens.
+                val view = LocalView.current
+                LaunchedEffect(currentScreen) {
+                    val controller = WindowCompat.getInsetsController(window, view)
+                    controller.systemBarsBehavior =
+                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    if (currentScreen == Screen.HOME) {
+                        delay(2000)
+                        controller.hide(WindowInsetsCompat.Type.statusBars())
+                    } else {
+                        controller.show(WindowInsetsCompat.Type.statusBars())
+                    }
+                }
+
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .systemBarsPadding()
+                        // Reserve the system-bar space even while the bar is hidden,
+                        // so hiding the status bar fades it out without shifting content.
+                        .windowInsetsPadding(WindowInsets.systemBarsIgnoringVisibility)
                 ) {
                     val smoothEasing = CubicBezierEasing(0.0f, 0.0f, 0.2f, 1.0f)
 
