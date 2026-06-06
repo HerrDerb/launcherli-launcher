@@ -40,7 +40,8 @@ data class HomeUiState(
     val showWidgetLabels: Boolean = false,
     val calendarIcsUrl: String = "",
     val todayAppointmentStarts: List<Long> = emptyList(),
-    val tomorrowAppointments: Int = 0
+    val tomorrowAppointments: Int = 0,
+    val appointmentsLoaded: Boolean = false
 )
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
@@ -158,14 +159,21 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun refreshCalendar(icsUrl: String) = withContext(Dispatchers.IO) {
         lastCalendarRefresh = System.currentTimeMillis()
         if (icsUrl.isBlank()) {
-            _uiState.update { it.copy(todayAppointmentStarts = emptyList(), tomorrowAppointments = 0) }
+            _uiState.update {
+                it.copy(
+                    todayAppointmentStarts = emptyList(),
+                    tomorrowAppointments = 0,
+                    appointmentsLoaded = false
+                )
+            }
             return@withContext
         }
         val times = icsRepo.fetchTimes(icsUrl) ?: return@withContext
         _uiState.update {
             it.copy(
                 todayAppointmentStarts = times.todayStarts,
-                tomorrowAppointments = times.tomorrowStarts.size
+                tomorrowAppointments = times.tomorrowStarts.size,
+                appointmentsLoaded = true
             )
         }
     }

@@ -56,7 +56,7 @@ class SettingsRepository(private val context: Context) {
     }
 
     val calendarIcsUrl: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[CALENDAR_ICS_URL] ?: ""
+        SecretCipher.decrypt(prefs[CALENDAR_ICS_URL] ?: "")
     }
 
     suspend fun setThemeMode(mode: ThemeMode) {
@@ -88,7 +88,7 @@ class SettingsRepository(private val context: Context) {
     }
 
     suspend fun setCalendarIcsUrl(url: String) {
-        context.dataStore.edit { it[CALENDAR_ICS_URL] = url }
+        context.dataStore.edit { it[CALENDAR_ICS_URL] = SecretCipher.encrypt(url.trim()) }
     }
 
 }

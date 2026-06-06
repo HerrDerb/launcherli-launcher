@@ -370,7 +370,7 @@ fun HomeScreen(
                 }
 
                 // Appointment counts (today / tomorrow), aligned under the date
-                if (uiState.calendarIcsUrl.isNotBlank()) {
+                if (uiState.calendarIcsUrl.isNotBlank() && uiState.appointmentsLoaded) {
                     val apptEndPad = if (clockEndX > 0f && dateRowWidth > 0f) {
                         val visibleClockRight = clockStartX + clockLineRight
                         with(density) { (dateRowStartX + dateRowWidth - visibleClockRight).coerceAtLeast(0f).toDp() }

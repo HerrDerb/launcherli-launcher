@@ -18,8 +18,8 @@ import java.time.temporal.ChronoUnit
 data class AppointmentTimes(val todayStarts: List<Long>, val tomorrowStarts: List<Long>)
 
 /**
- * Reads a public iCalendar (.ics) subscription URL — e.g. a Proton Calendar
- * "share via link" feed — and counts upcoming events for today and tomorrow.
+ * Reads a public iCalendar (.ics) subscription URL — any standard "share via
+ * link" feed — and counts upcoming events for today and tomorrow.
  *
  * Only plaintext event metadata (DTSTART / DTEND / RRULE) is needed; no auth.
  * Recurring events are expanded for the small today/tomorrow window.

@@ -175,34 +175,54 @@ fun SettingsScreen(
         SectionHeader("Calendar")
 
         Text(
-            text = "Paste a public calendar link (.ics). In Proton Calendar: " +
-                "Settings → Share → Share with anyone → copy link.",
+            text = "Paste a public calendar link (.ics). Most calendar apps " +
+                "offer this under a \"Share\" or \"Public/subscription link\" option.",
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
         )
 
-        var urlText by remember(calendarIcsUrl) { mutableStateOf(calendarIcsUrl) }
-        OutlinedTextField(
-            value = urlText,
-            onValueChange = { urlText = it },
-            label = { Text("Calendar link (.ics)") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
-        ) {
-            if (urlText.isNotBlank()) {
-                TextButton(onClick = {
-                    urlText = ""
-                    onCalendarIcsUrlChange("")
-                }) { Text("Clear") }
+        val hasSavedLink = calendarIcsUrl.isNotBlank()
+        // Resets to placeholder view whenever the saved value changes (e.g. after Save).
+        var editingLink by remember(calendarIcsUrl) { mutableStateOf(false) }
+
+        if (hasSavedLink && !editingLink) {
+            // Link is stored encrypted and never shown again — only a placeholder.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Link saved ••••••••",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                )
+                Row {
+                    TextButton(onClick = { editingLink = true }) { Text("Change") }
+                    TextButton(onClick = { onCalendarIcsUrlChange("") }) { Text("Clear") }
+                }
             }
-            TextButton(
-                onClick = { onCalendarIcsUrlChange(urlText.trim()) },
-                enabled = urlText.trim() != calendarIcsUrl
-            ) { Text("Save") }
+        } else {
+            var urlText by remember { mutableStateOf("") }
+            OutlinedTextField(
+                value = urlText,
+                onValueChange = { urlText = it },
+                label = { Text("Calendar link (.ics)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                if (hasSavedLink) {
+                    TextButton(onClick = { editingLink = false }) { Text("Cancel") }
+                }
+                TextButton(
+                    onClick = { onCalendarIcsUrlChange(urlText.trim()) },
+                    enabled = urlText.isNotBlank()
+                ) { Text("Save") }
+            }
         }
 
         HorizontalDivider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f))
