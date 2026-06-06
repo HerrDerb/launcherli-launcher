@@ -9,7 +9,9 @@ private val DarkColorScheme = darkColorScheme(
     primary = Color.White,
     secondary = Color.White,
     surface = Color.Transparent,
-    background = Color.Transparent,
+    // Opaque so panels drawn as `background.copy(alpha = …)` stay dark.
+    // The home screen never paints this, so the wallpaper still shows through.
+    background = Color(0xFF121212),
     onSurface = Color.White,
     onBackground = Color.White,
     error = Color(0xFFEF5350),
@@ -20,7 +22,9 @@ private val LightColorScheme = lightColorScheme(
     primary = Color.Black,
     secondary = Color.Black,
     surface = Color.Transparent,
-    background = Color.Transparent,
+    // Opaque light value; otherwise `background.copy(alpha = …)` would keep
+    // transparent's black RGB and render panels black-on-black in light mode.
+    background = Color(0xFFFAFAFA),
     onSurface = Color.Black,
     onBackground = Color.Black,
     error = Color(0xFFC62828),
