@@ -44,18 +44,22 @@ internal fun CalendarWidget(
                 Modifier.clickable { context.startActivity(calendarLaunch) }
             } else Modifier
         ) {
-            Text(
-                text = "Today · $todayCount",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Light,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
-            )
-            Text(
-                text = "Tomorrow · $tomorrowCount",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Light,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
-            )
+            if (todayCount > 0) {
+                Text(
+                    text = "Today · $todayCount",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Light,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
+                )
+            }
+            if (tomorrowCount > 0) {
+                Text(
+                    text = "Tomorrow · $tomorrowCount",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Light,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
+                )
+            }
         }
         Spacer(modifier = Modifier.width(endPad))
     }
