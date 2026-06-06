@@ -111,6 +111,11 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { it[SHOW_MOST_USED] = show }
     }
 
+    /** Clears all drawer launch counts, emptying the "most used" list. */
+    suspend fun clearAppUsageCounts() {
+        context.dataStore.edit { it.remove(APP_USAGE_COUNTS) }
+    }
+
     /** Increments the drawer launch count for [packageName]. */
     suspend fun recordAppLaunch(packageName: String) {
         context.dataStore.edit { prefs ->

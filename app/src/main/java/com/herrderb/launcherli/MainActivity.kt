@@ -189,6 +189,7 @@ class MainActivity : ComponentActivity() {
                                 onShowDrawerIconsChange = { viewModel.setShowDrawerIcons(it) },
                                 onShowWidgetLabelsChange = { viewModel.setShowWidgetLabels(it) },
                                 onShowMostUsedAppsChange = { viewModel.setShowMostUsedApps(it) },
+                                onResetMostUsedApps = { viewModel.resetAppUsage() },
                                 onCalendarIcsUrlChange = { viewModel.setCalendarIcsUrl(it) },
                                 onBack = { currentScreen = Screen.HOME },
                                 modifier = Modifier.background(

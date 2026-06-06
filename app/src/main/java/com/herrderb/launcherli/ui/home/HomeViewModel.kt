@@ -251,6 +251,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun resetAppUsage() {
+        viewModelScope.launch {
+            settingsRepository.clearAppUsageCounts()
+        }
+    }
+
     fun toggleHomescreenLock() {
         viewModelScope.launch {
             settingsRepository.setHomescreenLocked(!_uiState.value.homescreenLocked)

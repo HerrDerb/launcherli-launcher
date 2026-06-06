@@ -32,6 +32,7 @@ fun SettingsScreen(
     onShowDrawerIconsChange: (Boolean) -> Unit,
     onShowWidgetLabelsChange: (Boolean) -> Unit,
     onShowMostUsedAppsChange: (Boolean) -> Unit,
+    onResetMostUsedApps: () -> Unit,
     onCalendarIcsUrlChange: (String) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -268,6 +269,31 @@ fun SettingsScreen(
             Switch(
                 checked = showMostUsedApps,
                 onCheckedChange = onShowMostUsedAppsChange
+            )
+        }
+
+        var showResetConfirm by remember { mutableStateOf(false) }
+        TextButton(
+            onClick = { showResetConfirm = true },
+            contentPadding = PaddingValues(0.dp)
+        ) {
+            Text("Reset usage counts", fontSize = 13.sp, color = MaterialTheme.colorScheme.error)
+        }
+
+        if (showResetConfirm) {
+            AlertDialog(
+                onDismissRequest = { showResetConfirm = false },
+                title = { Text("Reset most used apps?") },
+                text = { Text("This clears all app launch counts. The most used list starts over.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        onResetMostUsedApps()
+                        showResetConfirm = false
+                    }) { Text("Reset") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showResetConfirm = false }) { Text("Cancel") }
+                }
             )
         }
 
