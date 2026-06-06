@@ -21,6 +21,13 @@ class SettingsRepository(private val context: Context) {
         private val SHOW_DRAWER_ICONS = booleanPreferencesKey("show_drawer_icons")
         private val SHOW_WIDGET_LABELS = booleanPreferencesKey("show_widget_labels")
         private val CALENDAR_ICS_URL = stringPreferencesKey("calendar_ics_url")
+        private val SHOW_MOST_USED = booleanPreferencesKey("show_most_used")
+        private val APP_USAGE_COUNTS = stringPreferencesKey("app_usage_counts")
+
+        /** Min drawer launches before an app qualifies for the "most used" list. */
+        const val MOST_USED_MIN_LAUNCHES = 5
+        /** Max number of apps shown in the "most used" list. */
+        const val MOST_USED_MAX = 4
     }
 
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
@@ -59,6 +66,15 @@ class SettingsRepository(private val context: Context) {
         SecretCipher.decrypt(prefs[CALENDAR_ICS_URL] ?: "")
     }
 
+    val showMostUsedApps: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[SHOW_MOST_USED] ?: true
+    }
+
+    /** Drawer launch counts, keyed by package name. */
+    val appUsageCounts: Flow<Map<String, Int>> = context.dataStore.data.map { prefs ->
+        decodeCounts(prefs[APP_USAGE_COUNTS])
+    }
+
     suspend fun setThemeMode(mode: ThemeMode) {
         context.dataStore.edit { it[THEME_MODE] = mode.name }
     }
@@ -90,5 +106,32 @@ class SettingsRepository(private val context: Context) {
     suspend fun setCalendarIcsUrl(url: String) {
         context.dataStore.edit { it[CALENDAR_ICS_URL] = SecretCipher.encrypt(url.trim()) }
     }
+
+    suspend fun setShowMostUsedApps(show: Boolean) {
+        context.dataStore.edit { it[SHOW_MOST_USED] = show }
+    }
+
+    /** Increments the drawer launch count for [packageName]. */
+    suspend fun recordAppLaunch(packageName: String) {
+        context.dataStore.edit { prefs ->
+            val counts = decodeCounts(prefs[APP_USAGE_COUNTS]).toMutableMap()
+            counts[packageName] = (counts[packageName] ?: 0) + 1
+            prefs[APP_USAGE_COUNTS] = encodeCounts(counts)
+        }
+    }
+
+    private fun decodeCounts(raw: String?): Map<String, Int> {
+        if (raw.isNullOrBlank()) return emptyMap()
+        return raw.split(',').mapNotNull { entry ->
+            val sep = entry.lastIndexOf(':')
+            if (sep <= 0) return@mapNotNull null
+            val pkg = entry.substring(0, sep)
+            val count = entry.substring(sep + 1).toIntOrNull() ?: return@mapNotNull null
+            pkg to count
+        }.toMap()
+    }
+
+    private fun encodeCounts(counts: Map<String, Int>): String =
+        counts.entries.joinToString(",") { "${it.key}:${it.value}" }
 
 }

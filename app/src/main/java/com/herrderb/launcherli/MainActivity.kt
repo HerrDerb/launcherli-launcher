@@ -180,6 +180,7 @@ class MainActivity : ComponentActivity() {
                                 favoriteAlignment = uiState.favoriteAlignment,
                                 showDrawerIcons = uiState.showDrawerIcons,
                                 showWidgetLabels = uiState.showWidgetLabels,
+                                showMostUsedApps = uiState.showMostUsedApps,
                                 calendarIcsUrl = uiState.calendarIcsUrl,
                                 allApps = uiState.allApps,
                                 onThemeChange = { viewModel.setThemeMode(it) },
@@ -187,6 +188,7 @@ class MainActivity : ComponentActivity() {
                                 onFavoriteAlignmentChange = { viewModel.setFavoriteAlignment(it) },
                                 onShowDrawerIconsChange = { viewModel.setShowDrawerIcons(it) },
                                 onShowWidgetLabelsChange = { viewModel.setShowWidgetLabels(it) },
+                                onShowMostUsedAppsChange = { viewModel.setShowMostUsedApps(it) },
                                 onCalendarIcsUrlChange = { viewModel.setCalendarIcsUrl(it) },
                                 onBack = { currentScreen = Screen.HOME },
                                 modifier = Modifier.background(
@@ -206,8 +208,10 @@ class MainActivity : ComponentActivity() {
                             allApps = uiState.allApps,
                             favoritePackages = favoritePackagesList,
                             showIcons = uiState.showDrawerIcons,
+                            mostUsedApps = uiState.mostUsedApps,
+                            showMostUsed = uiState.showMostUsedApps,
                             onAppLaunch = {
-                                viewModel.launchApp(it)
+                                viewModel.launchApp(it, countUsage = true)
                                 currentScreen = Screen.HOME
                                 drawerProgress = 0f
                             },

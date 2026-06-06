@@ -43,7 +43,9 @@ data class HomeUiState(
     val todayAppointmentStarts: List<Long> = emptyList(),
     val tomorrowAppointments: Int = 0,
     val appointmentsLoaded: Boolean = false,
-    val calendarProvider: CalendarProvider = CalendarProvider.OTHER
+    val calendarProvider: CalendarProvider = CalendarProvider.OTHER,
+    val showMostUsedApps: Boolean = true,
+    val mostUsedApps: List<AppInfo> = emptyList()
 )
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
@@ -75,7 +77,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 settingsRepository.favoriteTextSize,
                 settingsRepository.favoriteAlignment,
                 settingsRepository.showDrawerIcons,
-                settingsRepository.calendarIcsUrl
+                settingsRepository.calendarIcsUrl,
+                settingsRepository.showMostUsedApps,
+                settingsRepository.appUsageCounts
             ) { params ->
                 val theme = params[0] as ThemeMode
                 @Suppress("UNCHECKED_CAST")
@@ -85,6 +89,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 val alignment = params[4] as String
                 val drawerIcons = params[5] as Boolean
                 val icsUrl = params[6] as String
+                val showMostUsed = params[7] as Boolean
+                @Suppress("UNCHECKED_CAST")
+                val usageCounts = params[8] as Map<String, Int>
 
                 val allApps = _uiState.value.allApps
                 val favApps = favPackages.mapNotNull { pkg ->
@@ -98,7 +105,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     favoriteTextSize = textSize,
                     favoriteAlignment = alignment,
                     showDrawerIcons = drawerIcons,
-                    calendarIcsUrl = icsUrl
+                    calendarIcsUrl = icsUrl,
+                    showMostUsedApps = showMostUsed,
+                    mostUsedApps = mostUsedFrom(usageCounts, allApps)
                 )
             }
 
@@ -220,8 +229,26 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(allApps = apps) }
     }
 
-    fun launchApp(appInfo: AppInfo) {
+    /** Top apps (count ≥ threshold), sorted by launches, mapped to installed apps. */
+    private fun mostUsedFrom(counts: Map<String, Int>, allApps: List<AppInfo>): List<AppInfo> =
+        counts.entries
+            .filter { it.value >= SettingsRepository.MOST_USED_MIN_LAUNCHES }
+            .sortedByDescending { it.value }
+            .mapNotNull { e -> allApps.find { it.packageName == e.key } }
+            .take(SettingsRepository.MOST_USED_MAX)
+
+    /** @param countUsage when true, the launch is tallied for the "most used" list. */
+    fun launchApp(appInfo: AppInfo, countUsage: Boolean = false) {
         appRepository.launchApp(appInfo)
+        if (countUsage) {
+            viewModelScope.launch { settingsRepository.recordAppLaunch(appInfo.packageName) }
+        }
+    }
+
+    fun setShowMostUsedApps(show: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setShowMostUsedApps(show)
+        }
     }
 
     fun toggleHomescreenLock() {

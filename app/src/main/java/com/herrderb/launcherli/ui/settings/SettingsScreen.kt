@@ -23,6 +23,7 @@ fun SettingsScreen(
     favoriteAlignment: String,
     showDrawerIcons: Boolean,
     showWidgetLabels: Boolean,
+    showMostUsedApps: Boolean,
     calendarIcsUrl: String,
     allApps: List<com.herrderb.launcherli.data.AppInfo>,
     onThemeChange: (ThemeMode) -> Unit,
@@ -30,6 +31,7 @@ fun SettingsScreen(
     onFavoriteAlignmentChange: (String) -> Unit,
     onShowDrawerIconsChange: (Boolean) -> Unit,
     onShowWidgetLabelsChange: (Boolean) -> Unit,
+    onShowMostUsedAppsChange: (Boolean) -> Unit,
     onCalendarIcsUrlChange: (String) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -243,6 +245,29 @@ fun SettingsScreen(
             Switch(
                 checked = showDrawerIcons,
                 onCheckedChange = onShowDrawerIconsChange
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Most used apps",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                )
+                Text(
+                    text = "Show your most-launched apps above the list.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                )
+            }
+            Switch(
+                checked = showMostUsedApps,
+                onCheckedChange = onShowMostUsedAppsChange
             )
         }
 

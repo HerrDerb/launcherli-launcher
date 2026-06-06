@@ -1,5 +1,6 @@
 package com.herrderb.launcherli.ui.drawer
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -40,6 +41,8 @@ fun AppDrawerScreen(
     allApps: List<AppInfo>,
     favoritePackages: List<String>,
     showIcons: Boolean = false,
+    mostUsedApps: List<AppInfo> = emptyList(),
+    showMostUsed: Boolean = false,
     onAppLaunch: (AppInfo) -> Unit,
     onAddFavorite: (AppInfo) -> Unit,
     onRemoveFavorite: (AppInfo) -> Unit,
@@ -132,97 +135,59 @@ fun AppDrawerScreen(
             )
 
             // App list
+            val showMostUsedSection = showMostUsed && searchQuery.isBlank() && mostUsedApps.isNotEmpty()
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(filteredApps, key = { it.packageName }) { app ->
-                    val isFavorite = app.packageName in favoriteSet
-                    var showMenu by remember { mutableStateOf(false) }
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .animateItem()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .pointerInput(Unit) {
-                                    detectTapGestures(
-                                        onTap = {
-                                            focusManager.clearFocus()
-                                            onAppLaunch(app)
-                                        },
-                                        onLongPress = {
-                                            focusManager.clearFocus()
-                                            showMenu = true
-                                        }
-                                    )
-                                }
-                                .padding(vertical = 10.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (showIcons && app.icon != null) {
-                                val bitmap = remember(app.packageName) {
-                                    app.icon.toBitmap(48, 48).asImageBitmap()
-                                }
-                                Image(
-                                    painter = BitmapPainter(bitmap),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(32.dp)
-                                )
-                            }
-                            Text(
-                                text = app.label,
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Normal,
-                                color = MaterialTheme.colorScheme.onBackground,
-                                modifier = Modifier.weight(1f)
-                            )
-                            if (isFavorite) {
-                                Text(
-                                    text = "★",
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                                    modifier = Modifier.padding(start = 8.dp)
-                                )
-                            }
-                        }
-
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false },
-                            offset = DpOffset(48.dp, (-100).dp),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(
-                                text = app.label,
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 0.dp)
-                            )
-                            HorizontalDivider()
-                            DropdownMenuItem(
-                                text = { Text(if (isFavorite) "Remove from favorites" else "Add to favorites") },
-                                onClick = {
-                                    showMenu = false
-                                    if (isFavorite) onRemoveFavorite(app) else onAddFavorite(app)
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("App info") },
-                                onClick = {
-                                    showMenu = false
-                                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                        data = Uri.parse("package:${app.packageName}")
-                                    }
-                                    context.startActivity(intent)
-                                }
-                            )
-                        }
+                if (showMostUsedSection) {
+                    item(key = "most_used_header") {
+                        Text(
+                            text = "MOST USED",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 1.5.sp,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.35f),
+                            modifier = Modifier.padding(bottom = 2.dp)
+                        )
                     }
+                    items(mostUsedApps, key = { "mu_${it.packageName}" }) { app ->
+                        DrawerAppRow(
+                            app = app,
+                            isFavorite = app.packageName in favoriteSet,
+                            showIcons = showIcons,
+                            context = context,
+                            onLaunch = {
+                                focusManager.clearFocus()
+                                onAppLaunch(app)
+                            },
+                            onAddFavorite = { onAddFavorite(app) },
+                            onRemoveFavorite = { onRemoveFavorite(app) },
+                            onLongPress = { focusManager.clearFocus() }
+                        )
+                    }
+                    item(key = "most_used_divider") {
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f),
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+                }
+                items(filteredApps, key = { it.packageName }) { app ->
+                    DrawerAppRow(
+                        app = app,
+                        isFavorite = app.packageName in favoriteSet,
+                        showIcons = showIcons,
+                        context = context,
+                        onLaunch = {
+                            focusManager.clearFocus()
+                            onAppLaunch(app)
+                        },
+                        onAddFavorite = { onAddFavorite(app) },
+                        onRemoveFavorite = { onRemoveFavorite(app) },
+                        onLongPress = { focusManager.clearFocus() },
+                        modifier = Modifier.animateItem()
+                    )
                 }
             }
         }
@@ -240,6 +205,101 @@ fun AppDrawerScreen(
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
+        }
+    }
+}
+
+/** A single tappable app entry with its long-press menu. Shared by the
+ * "most used" section and the full alphabetical list. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun DrawerAppRow(
+    app: AppInfo,
+    isFavorite: Boolean,
+    showIcons: Boolean,
+    context: Context,
+    onLaunch: () -> Unit,
+    onAddFavorite: () -> Unit,
+    onRemoveFavorite: () -> Unit,
+    onLongPress: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var showMenu by remember { mutableStateOf(false) }
+
+    Box(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .pointerInput(app.packageName) {
+                    detectTapGestures(
+                        onTap = { onLaunch() },
+                        onLongPress = {
+                            onLongPress()
+                            showMenu = true
+                        }
+                    )
+                }
+                .padding(vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (showIcons && app.icon != null) {
+                val bitmap = remember(app.packageName) {
+                    app.icon.toBitmap(48, 48).asImageBitmap()
+                }
+                Image(
+                    painter = BitmapPainter(bitmap),
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+            Text(
+                text = app.label,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Normal,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.weight(1f)
+            )
+            if (isFavorite) {
+                Text(
+                    text = "★",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+        }
+
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false },
+            offset = DpOffset(48.dp, (-100).dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text(
+                text = app.label,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 0.dp)
+            )
+            HorizontalDivider()
+            DropdownMenuItem(
+                text = { Text(if (isFavorite) "Remove from favorites" else "Add to favorites") },
+                onClick = {
+                    showMenu = false
+                    if (isFavorite) onRemoveFavorite() else onAddFavorite()
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("App info") },
+                onClick = {
+                    showMenu = false
+                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.parse("package:${app.packageName}")
+                    }
+                    context.startActivity(intent)
+                }
+            )
         }
     }
 }
