@@ -1,6 +1,7 @@
 package com.herrderb.launcherli.data.calendar
 
 import android.util.Log
+import com.posthog.PostHog
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.LocalDate
@@ -60,6 +61,7 @@ class IcsCalendarRepository {
     }
 
     private fun download(urlStr: String): String {
+        PostHog.capture(event = "ics_fetch")
         val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
             connectTimeout = 15000
             readTimeout = 20000

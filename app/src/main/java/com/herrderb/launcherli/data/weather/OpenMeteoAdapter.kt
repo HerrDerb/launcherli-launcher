@@ -1,6 +1,7 @@
 package com.herrderb.launcherli.data.weather
 
 import android.util.Log
+import com.posthog.PostHog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
@@ -25,6 +26,7 @@ class OpenMeteoAdapter : WeatherAdapter {
             val url = URL(
                 "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true&hourly=weather_code&forecast_hours=2"
             )
+            PostHog.capture(event = "openmeteo_fetch")
             val connection = url.openConnection() as HttpURLConnection
             connection.useCaches = false
             connection.setRequestProperty("User-Agent", "Launcherli/1.0")

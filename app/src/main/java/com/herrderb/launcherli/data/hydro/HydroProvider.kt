@@ -2,6 +2,7 @@ package com.herrderb.launcherli.data.hydro
 
 import android.content.Context
 import android.util.Log
+import com.posthog.PostHog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -93,6 +94,7 @@ class HydroProvider(private val context: Context) {
     private fun fetchCurrentTemperature(stationKey: String): Double? {
         return try {
             val url = String.format(STATION_DATA_URL, stationKey)
+            PostHog.capture(event = "hydro_fetch")
             val conn = URL(url).openConnection() as HttpURLConnection
             conn.useCaches = false
             conn.setRequestProperty("User-Agent", "Launcherli/1.0")
