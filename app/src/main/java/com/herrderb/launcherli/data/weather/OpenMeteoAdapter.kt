@@ -24,7 +24,9 @@ class OpenMeteoAdapter : WeatherAdapter {
             if (lat == 0.0 && lon == 0.0) return@withContext null
 
             val url = URL(
-                "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true&hourly=weather_code&forecast_hours=2"
+                "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon" +
+                    "&current_weather=true&hourly=temperature_2m,weather_code" +
+                    "&daily=temperature_2m_max&timezone=auto&forecast_days=1"
             )
             PostHog.capture(event = "openmeteo_fetch")
             val connection = url.openConnection() as HttpURLConnection
@@ -56,10 +58,26 @@ class OpenMeteoAdapter : WeatherAdapter {
             val weatherCode = extractJsonInt(json, "weathercode") ?: 0
             val condition = wmoCodeToCondition(weatherCode)
 
-            // Extract +1h forecast condition from hourly.weather_code array
-            val forecastCondition = extractHourlyWeatherCode(json, 1)?.let { wmoCodeToCondition(it) }
+            // Hourly arrays run 00:00..23:00 local, so the array index == local hour.
+            val currentHour = extractCurrentHour(json)
 
-            WeatherData(temperature = temperature, condition = condition, forecastCondition = forecastCondition)
+            // Extract +1h forecast condition from hourly.weather_code array
+            val forecastCondition = currentHour?.let { extractHourlyWeatherCode(json, it + 1) }
+                ?.let { wmoCodeToCondition(it) }
+
+            // Day's max temperature, and whether the hour it occurs is still ahead.
+            val maxTemperature = extractFirstArrayFloat(json, "temperature_2m_max")
+            val hourlyTemps = extractFloatArray(json, "temperature_2m")
+            val maxHour = hourlyTemps.indices.maxByOrNull { hourlyTemps[it] }
+            val maxTempAhead = currentHour != null && maxHour != null && maxHour > currentHour
+
+            WeatherData(
+                temperature = temperature,
+                condition = condition,
+                forecastCondition = forecastCondition,
+                maxTemperature = maxTemperature,
+                maxTempAhead = maxTempAhead
+            )
         } catch (e: Exception) {
             Log.e("OpenMeteoAdapter", "Failed to fetch weather", e)
             null
@@ -98,4 +116,22 @@ class OpenMeteoAdapter : WeatherAdapter {
         val values = match.groupValues[1].split(",").map { it.trim() }
         return values.getOrNull(index)?.toIntOrNull()
     }
+
+    /** Local hour (0..23) from current_weather.time, e.g. "2026-06-24T14:00" -> 14. */
+    private fun extractCurrentHour(json: String): Int? {
+        val pattern = """"current_weather"\s*:\s*\{[^}]*?"time"\s*:\s*"([^"]+)"""".toRegex()
+        val time = pattern.find(json)?.groupValues?.get(1) ?: return null
+        return time.substringAfter('T', "").take(2).toIntOrNull()
+    }
+
+    /** All numbers of a JSON array property, e.g. hourly "temperature_2m". */
+    private fun extractFloatArray(json: String, key: String): List<Float> {
+        val pattern = """"$key"\s*:\s*\[([^\]]+)]""".toRegex()
+        val match = pattern.find(json) ?: return emptyList()
+        return match.groupValues[1].split(",").mapNotNull { it.trim().toFloatOrNull() }
+    }
+
+    /** First number of a JSON array property, e.g. daily "temperature_2m_max". */
+    private fun extractFirstArrayFloat(json: String, key: String): Float? =
+        extractFloatArray(json, key).firstOrNull()
 }

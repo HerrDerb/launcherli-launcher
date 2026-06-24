@@ -7,6 +7,8 @@ data class WeatherData(
     val temperature: Float,
     val condition: WeatherCondition,
     val forecastCondition: WeatherCondition? = null,
+    val maxTemperature: Float? = null,   // day's max, null if unknown
+    val maxTempAhead: Boolean = false,   // true only if the max hour is still in the future
     val stationName: String = "",
     val rateLimited: Boolean = false
 )
