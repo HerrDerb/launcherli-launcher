@@ -13,7 +13,7 @@ import com.herrderb.launcherli.data.weather.StationLocator
 import com.herrderb.launcherli.data.weather.LocationInfo
 import com.herrderb.launcherli.data.hydro.HydroData
 import com.herrderb.launcherli.data.hydro.HydroProvider
-import com.herrderb.launcherli.data.calendar.CalendarProvider
+import com.herrderb.launcherli.data.calendar.CalendarApp
 import com.herrderb.launcherli.ui.theme.ThemeMode
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -45,7 +45,7 @@ data class HomeUiState(
     val todayAppointmentStarts: List<Long> = emptyList(),
     val tomorrowAppointments: Int = 0,
     val appointmentsLoaded: Boolean = false,
-    val calendarProvider: CalendarProvider = CalendarProvider.OTHER,
+    val calendarProvider: CalendarApp? = null,
     val showMostUsedApps: Boolean = true,
     val mostUsedApps: List<AppInfo> = emptyList()
 )
