@@ -63,9 +63,9 @@ internal fun WeatherWidget(
             LaunchedEffect(resumeTick, w.maxTempAhead, w.maxTemperature) {
                 if (w.maxTempAhead && w.maxTemperature != null) {
                     showMax = false
-                    delay(3000)
+                    delay(1500)
                     showMax = true
-                    delay(3000)
+                    delay(2000)
                     showMax = false
                 } else {
                     showMax = false
