@@ -1,6 +1,9 @@
 package com.herrderb.launcherli.ui.home
 
+import android.content.Intent
+import android.provider.AlarmClock
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.LastBaseline
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -56,6 +60,7 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     var showBottomSheet by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     val density = LocalDensity.current
     val clock = rememberClockState()
 
@@ -139,26 +144,45 @@ fun HomeScreen(
 
                     Spacer(modifier = Modifier.weight(1f))
                     if (clock.nextAlarm.isNotEmpty()) {
-                        Icon(
-                            imageVector = Icons.Outlined.Alarm,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text(
-                            text = clock.nextAlarm,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Light,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable {
+                                // Open the clock app's alarm list.
+                                val intent = Intent(AlarmClock.ACTION_SHOW_ALARMS)
+                                runCatching { context.startActivity(intent) }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Alarm,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = clock.nextAlarm,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Light,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                            )
+                        }
                         Spacer(modifier = Modifier.width(12.dp))
                     }
                     Text(
                         text = clock.date,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Light,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                        modifier = Modifier.clickable {
+                            // Open the device's default calendar on its main screen.
+                            // A plain launcher intent (no time/event data) avoids the
+                            // "Invalid appointment" error Proton shows for day deep-links.
+                            val intent = Intent.makeMainSelectorActivity(
+                                Intent.ACTION_MAIN,
+                                Intent.CATEGORY_APP_CALENDAR
+                            )
+                            runCatching { context.startActivity(intent) }
+                        }
                     )
                     Spacer(modifier = Modifier.width(alarmEndPad))
                 }

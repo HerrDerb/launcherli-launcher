@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -100,12 +101,25 @@ internal fun WeatherWidget(
                         .clickable(onClick = onClick)
                 ) {
                     if (w.rateLimited) {
-                        Icon(
-                            imageVector = Icons.Outlined.HourglassEmpty,
-                            contentDescription = "Rate limited",
-                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
-                            modifier = Modifier.size(24.dp)
-                        )
+                        // Icons carry no text baseline. Since the widget is placed in
+                        // the time row with alignBy(LastBaseline), an icon-only state
+                        // would have no baseline and snap to the top of the row. An
+                        // invisible 20sp anchor keeps the baseline the temperature
+                        // would have, so the icon stays aligned with the clock.
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "°",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Light,
+                                modifier = Modifier.alpha(0f)
+                            )
+                            Icon(
+                                imageVector = Icons.Outlined.HourglassEmpty,
+                                contentDescription = "Rate limited",
+                                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     } else {
                         // A single progress value drives a vertical conveyor: 0 = current
                         // reading shown, 1 = day's max shown. The current row is pushed up
