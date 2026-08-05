@@ -204,6 +204,7 @@ class MainActivity : ComponentActivity() {
                                 showDrawerIcons = uiState.showDrawerIcons,
                                 showWidgetLabels = uiState.showWidgetLabels,
                                 showMostUsedApps = uiState.showMostUsedApps,
+                                contactSearchEnabled = uiState.contactSearchEnabled,
                                 calendarIcsUrl = uiState.calendarIcsUrl,
                                 allApps = uiState.allApps,
                                 onThemeChange = { viewModel.setThemeMode(it) },
@@ -213,6 +214,7 @@ class MainActivity : ComponentActivity() {
                                 onShowWidgetLabelsChange = { viewModel.setShowWidgetLabels(it) },
                                 onShowMostUsedAppsChange = { viewModel.setShowMostUsedApps(it) },
                                 onResetMostUsedApps = { viewModel.resetAppUsage() },
+                                onContactSearchEnabledChange = { viewModel.setContactSearchEnabled(it) },
                                 onCalendarIcsUrlChange = { viewModel.setCalendarIcsUrl(it) },
                                 onBack = { currentScreen = Screen.HOME },
                                 modifier = Modifier.background(
@@ -234,6 +236,7 @@ class MainActivity : ComponentActivity() {
                             showIcons = uiState.showDrawerIcons,
                             mostUsedApps = uiState.mostUsedApps,
                             showMostUsed = uiState.showMostUsedApps,
+                            contactSearchEnabled = uiState.contactSearchEnabled,
                             onAppLaunch = {
                                 viewModel.launchApp(it, countUsage = true)
                                 currentScreen = Screen.HOME

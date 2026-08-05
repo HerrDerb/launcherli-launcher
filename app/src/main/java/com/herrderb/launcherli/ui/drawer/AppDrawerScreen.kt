@@ -6,6 +6,7 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
@@ -14,6 +15,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Message
+import androidx.compose.material.icons.filled.Whatsapp
+import androidx.compose.material.icons.outlined.Call
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,12 +35,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.herrderb.launcherli.data.AppInfo
 import com.herrderb.launcherli.data.AppRepository
+import com.herrderb.launcherli.data.ContactInfo
+import com.herrderb.launcherli.data.ContactsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -47,6 +56,7 @@ fun AppDrawerScreen(
     showIcons: Boolean = false,
     mostUsedApps: List<AppInfo> = emptyList(),
     showMostUsed: Boolean = false,
+    contactSearchEnabled: Boolean = false,
     onAppLaunch: (AppInfo) -> Unit,
     onAddFavorite: (AppInfo) -> Unit,
     onRemoveFavorite: (AppInfo) -> Unit,
@@ -67,6 +77,20 @@ fun AppDrawerScreen(
     }
 
     val favoriteSet = remember(favoritePackages) { favoritePackages.toHashSet() }
+
+    val contactsRepository = remember { ContactsRepository(context) }
+    var contactResults by remember { mutableStateOf<List<ContactInfo>>(emptyList()) }
+
+    LaunchedEffect(searchQuery, contactSearchEnabled) {
+        if (!contactSearchEnabled || searchQuery.isBlank()) {
+            contactResults = emptyList()
+            return@LaunchedEffect
+        }
+        // Debounce: the effect restarts on every keystroke, cancelling the
+        // pending delay and abandoning any stale in-flight query.
+        delay(150)
+        contactResults = contactsRepository.search(searchQuery)
+    }
 
     LaunchedEffect(isFullyVisible) {
         if (isFullyVisible) {
@@ -193,6 +217,46 @@ fun AppDrawerScreen(
                         modifier = Modifier.animateItem()
                     )
                 }
+                if (contactResults.isNotEmpty()) {
+                    item(key = "contacts_divider") {
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f),
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+                    item(key = "contacts_header") {
+                        Text(
+                            text = "CONTACTS",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 1.5.sp,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.35f),
+                            modifier = Modifier.padding(bottom = 2.dp)
+                        )
+                    }
+                    items(contactResults, key = { "contact_${it.contactId}" }) { contact ->
+                        ContactRow(
+                            contact = contact,
+                            onCall = {
+                                focusManager.clearFocus()
+                                contact.phoneNumber?.let { contactsRepository.dial(it) }
+                            },
+                            onSms = {
+                                focusManager.clearFocus()
+                                contact.phoneNumber?.let { contactsRepository.sms(it) }
+                            },
+                            onWhatsApp = {
+                                focusManager.clearFocus()
+                                contact.whatsAppDataId?.let { contactsRepository.openWhatsApp(it) }
+                            },
+                            onOpenCard = {
+                                focusManager.clearFocus()
+                                contactsRepository.openContactCard(contact)
+                            },
+                            modifier = Modifier.animateItem()
+                        )
+                    }
+                }
             }
         }
 
@@ -209,6 +273,58 @@ fun AppDrawerScreen(
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
+        }
+    }
+}
+
+/** A contact search hit with quick actions. Call/SMS need a phone number,
+ * WhatsApp needs a synced WhatsApp profile row; the contact card is always
+ * reachable via the trailing button or the row itself. */
+@Composable
+private fun ContactRow(
+    contact: ContactInfo,
+    onCall: () -> Unit,
+    onSms: () -> Unit,
+    onWhatsApp: () -> Unit,
+    onOpenCard: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onOpenCard() }
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = contact.displayName,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.Normal,
+            color = MaterialTheme.colorScheme.onBackground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        val actionTint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+        if (contact.phoneNumber != null) {
+            IconButton(onClick = onCall) {
+                Icon(Icons.Outlined.Call, contentDescription = "Call", tint = actionTint)
+            }
+            IconButton(onClick = onSms) {
+                Icon(
+                    Icons.AutoMirrored.Outlined.Message,
+                    contentDescription = "SMS",
+                    tint = actionTint
+                )
+            }
+        }
+        if (contact.whatsAppDataId != null) {
+            IconButton(onClick = onWhatsApp) {
+                Icon(Icons.Filled.Whatsapp, contentDescription = "WhatsApp", tint = actionTint)
+            }
+        }
+        IconButton(onClick = onOpenCard) {
+            Icon(Icons.Outlined.Person, contentDescription = "Open contact", tint = actionTint)
         }
     }
 }

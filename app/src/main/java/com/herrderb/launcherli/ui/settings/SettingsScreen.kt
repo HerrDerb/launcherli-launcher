@@ -1,5 +1,12 @@
 package com.herrderb.launcherli.ui.settings
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -10,9 +17,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.herrderb.launcherli.ui.theme.ThemeMode
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -24,6 +33,7 @@ fun SettingsScreen(
     showDrawerIcons: Boolean,
     showWidgetLabels: Boolean,
     showMostUsedApps: Boolean,
+    contactSearchEnabled: Boolean,
     calendarIcsUrl: String,
     allApps: List<com.herrderb.launcherli.data.AppInfo>,
     onThemeChange: (ThemeMode) -> Unit,
@@ -33,6 +43,7 @@ fun SettingsScreen(
     onShowWidgetLabelsChange: (Boolean) -> Unit,
     onShowMostUsedAppsChange: (Boolean) -> Unit,
     onResetMostUsedApps: () -> Unit,
+    onContactSearchEnabledChange: (Boolean) -> Unit,
     onCalendarIcsUrlChange: (String) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -270,6 +281,74 @@ fun SettingsScreen(
                 checked = showMostUsedApps,
                 onCheckedChange = onShowMostUsedAppsChange
             )
+        }
+
+        val context = LocalContext.current
+        var showContactsPermissionHint by remember { mutableStateOf(false) }
+        val contactsPermissionLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            if (granted) {
+                showContactsPermissionHint = false
+                onContactSearchEnabledChange(true)
+            } else {
+                showContactsPermissionHint = true
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Contact search",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                )
+                Text(
+                    text = "Search device contacts from the drawer search bar.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                )
+            }
+            Switch(
+                checked = contactSearchEnabled,
+                onCheckedChange = { wantOn ->
+                    when {
+                        !wantOn -> onContactSearchEnabledChange(false)
+                        ContextCompat.checkSelfPermission(
+                            context, Manifest.permission.READ_CONTACTS
+                        ) == PackageManager.PERMISSION_GRANTED ->
+                            onContactSearchEnabledChange(true)
+                        else -> contactsPermissionLauncher
+                            .launch(Manifest.permission.READ_CONTACTS)
+                    }
+                }
+            )
+        }
+
+        if (showContactsPermissionHint) {
+            Text(
+                text = "Contacts permission was denied. If the dialog no longer " +
+                    "appears, allow Contacts for Launcherli in system settings.",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.error
+            )
+            TextButton(
+                onClick = {
+                    context.startActivity(
+                        Intent(
+                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.parse("package:${context.packageName}")
+                        )
+                    )
+                },
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Text("Open app settings", fontSize = 13.sp)
+            }
         }
 
         var showResetConfirm by remember { mutableStateOf(false) }
