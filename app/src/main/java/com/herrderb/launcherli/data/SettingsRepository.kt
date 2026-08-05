@@ -23,6 +23,7 @@ class SettingsRepository(private val context: Context) {
         private val CALENDAR_ICS_URL = stringPreferencesKey("calendar_ics_url")
         private val SHOW_MOST_USED = booleanPreferencesKey("show_most_used")
         private val APP_USAGE_COUNTS = stringPreferencesKey("app_usage_counts")
+        private val CONTACT_SEARCH_ENABLED = booleanPreferencesKey("contact_search_enabled")
 
         /** Min drawer launches before an app qualifies for the "most used" list. */
         const val MOST_USED_MIN_LAUNCHES = 5
@@ -75,6 +76,10 @@ class SettingsRepository(private val context: Context) {
         decodeCounts(prefs[APP_USAGE_COUNTS])
     }
 
+    val contactSearchEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[CONTACT_SEARCH_ENABLED] ?: false
+    }
+
     suspend fun setThemeMode(mode: ThemeMode) {
         context.dataStore.edit { it[THEME_MODE] = mode.name }
     }
@@ -109,6 +114,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setShowMostUsedApps(show: Boolean) {
         context.dataStore.edit { it[SHOW_MOST_USED] = show }
+    }
+
+    suspend fun setContactSearchEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[CONTACT_SEARCH_ENABLED] = enabled }
     }
 
     /** Clears all drawer launch counts, emptying the "most used" list. */

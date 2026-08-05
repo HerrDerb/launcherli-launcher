@@ -47,7 +47,8 @@ data class HomeUiState(
     val appointmentsLoaded: Boolean = false,
     val calendarProvider: CalendarApp? = null,
     val showMostUsedApps: Boolean = true,
-    val mostUsedApps: List<AppInfo> = emptyList()
+    val mostUsedApps: List<AppInfo> = emptyList(),
+    val contactSearchEnabled: Boolean = false
 )
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
@@ -112,8 +113,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
 
-            combine(coreSettings, settingsRepository.showWidgetLabels) { state, showLabels ->
-                state.copy(showWidgetLabels = showLabels)
+            combine(
+                coreSettings,
+                settingsRepository.showWidgetLabels,
+                settingsRepository.contactSearchEnabled
+            ) { state, showLabels, contactSearch ->
+                state.copy(showWidgetLabels = showLabels, contactSearchEnabled = contactSearch)
             }.collect { state ->
                 _uiState.value = state
             }
@@ -289,6 +294,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun setShowWidgetLabels(show: Boolean) {
         viewModelScope.launch {
             settingsRepository.setShowWidgetLabels(show)
+        }
+    }
+
+    fun setContactSearchEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setContactSearchEnabled(enabled)
         }
     }
 
