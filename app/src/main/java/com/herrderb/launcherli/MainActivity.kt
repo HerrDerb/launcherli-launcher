@@ -189,7 +189,7 @@ class MainActivity : ComponentActivity() {
                                             android.content.Intent.ACTION_VIEW,
                                             android.net.Uri.parse(hydro.url)
                                         )
-                                        startActivity(intent)
+                                        try { startActivity(intent) } catch (_: Exception) {}
                                     }
                                 },
                                 onRemoveFavorite = { viewModel.removeFavoriteApp(it) },

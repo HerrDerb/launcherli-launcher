@@ -233,14 +233,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(allApps = apps) }
     }
 
-    /** Top apps (count ≥ threshold), sorted by launches, mapped to installed apps. */
-    private fun mostUsedFrom(counts: Map<String, Int>, allApps: List<AppInfo>): List<AppInfo> =
-        counts.entries
-            .filter { it.value >= SettingsRepository.MOST_USED_MIN_LAUNCHES }
-            .sortedByDescending { it.value }
-            .mapNotNull { e -> allApps.find { it.packageName == e.key } }
-            .take(SettingsRepository.MOST_USED_MAX)
-
     /** @param countUsage when true, the launch is tallied for the "most used" list. */
     fun launchApp(appInfo: AppInfo, countUsage: Boolean = false) {
         appRepository.launchApp(appInfo)
@@ -328,3 +320,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
 }
+
+/** Top apps (count ≥ threshold), sorted by launches, mapped to installed apps. */
+internal fun mostUsedFrom(counts: Map<String, Int>, allApps: List<AppInfo>): List<AppInfo> =
+    counts.entries
+        .filter { it.value >= SettingsRepository.MOST_USED_MIN_LAUNCHES }
+        .sortedByDescending { it.value }
+        .mapNotNull { e -> allApps.find { it.packageName == e.key } }
+        .take(SettingsRepository.MOST_USED_MAX)

@@ -10,15 +10,17 @@ A minimalist Android launcher built with Kotlin and Jetpack Compose. Clean, prec
 - **Calendar counts** — today/tomorrow appointment counts from any public iCalendar (`.ics`) link; tap opens the provider's app when recognized (e.g. Proton Calendar)
 - **Favorite apps** — text-only list with drag-to-reorder and swipe-to-remove
 - **App drawer** — swipe left to open, with search and a **Most used** section
+- **Contact search**: optional; matching contacts show up in the drawer search with call, SMS, WhatsApp and contact card shortcuts
 - **Dark / Light / System theme**
 - **No icons on home screen** — plain, typographic design
-- **Settings** — text size, alignment, station labels, drawer icons, most-used apps, calendar link
+- **Settings** — text size, alignment, station labels, drawer icons, most-used apps, contact search, calendar link
 
 ## Privacy
 
 - The calendar link is stored **encrypted at rest** (AES-256-GCM, key held in the Android Keystore) and never shown again after saving.
 - Network refreshes (weather, hydro, calendar) run **only while the launcher is in the foreground** — no background polling.
-- No analytics, no third-party dependencies beyond AndroidX.
+- Contacts are read on-device only when contact search is enabled; the launcher never sends them anywhere.
+- No analytics, no tracking, no third-party runtime dependencies beyond AndroidX.
 
 ## Screenshots
 
@@ -29,11 +31,14 @@ _Coming soon_
 - Android 10+ (API 29)
 - Location permission — for weather/hydro station selection
 - Internet — for weather, hydro, and calendar data
+- Contacts permission (optional): for contact search in the drawer
 
 ## Build
 
 ```bash
-./gradlew assembleDebug
+./gradlew assembleDebug        # build
+./gradlew testDebugUnitTest    # JVM unit tests
+./gradlew deploy               # install + launch on a connected device
 ```
 
 ## Architecture
@@ -42,7 +47,8 @@ _Coming soon_
 - **DataStore** for preferences (calendar link encrypted via Android Keystore)
 - **MVVM** with `StateFlow`; periodic refreshes gated to the foreground via `repeatOnLifecycle`
 - Pluggable weather sources behind a `WeatherAdapter` interface + registry
-- No third-party dependencies beyond AndroidX
+- JVM unit tests (JUnit 4) for the pure logic: ICS parsing, weather parsing, usage counts, coordinates
+- No third-party runtime dependencies beyond AndroidX
 
 ## Data Sources
 

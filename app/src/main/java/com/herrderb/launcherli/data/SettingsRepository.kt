@@ -73,7 +73,7 @@ class SettingsRepository(private val context: Context) {
 
     /** Drawer launch counts, keyed by package name. */
     val appUsageCounts: Flow<Map<String, Int>> = context.dataStore.data.map { prefs ->
-        decodeCounts(prefs[APP_USAGE_COUNTS])
+        UsageCounts.decode(prefs[APP_USAGE_COUNTS])
     }
 
     val contactSearchEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
@@ -128,13 +128,17 @@ class SettingsRepository(private val context: Context) {
     /** Increments the drawer launch count for [packageName]. */
     suspend fun recordAppLaunch(packageName: String) {
         context.dataStore.edit { prefs ->
-            val counts = decodeCounts(prefs[APP_USAGE_COUNTS]).toMutableMap()
+            val counts = UsageCounts.decode(prefs[APP_USAGE_COUNTS]).toMutableMap()
             counts[packageName] = (counts[packageName] ?: 0) + 1
-            prefs[APP_USAGE_COUNTS] = encodeCounts(counts)
+            prefs[APP_USAGE_COUNTS] = UsageCounts.encode(counts)
         }
     }
+}
 
-    private fun decodeCounts(raw: String?): Map<String, Int> {
+/** Codec for drawer launch counts, stored as "pkg:count,pkg:count". */
+internal object UsageCounts {
+
+    fun decode(raw: String?): Map<String, Int> {
         if (raw.isNullOrBlank()) return emptyMap()
         return raw.split(',').mapNotNull { entry ->
             val sep = entry.lastIndexOf(':')
@@ -145,7 +149,6 @@ class SettingsRepository(private val context: Context) {
         }.toMap()
     }
 
-    private fun encodeCounts(counts: Map<String, Int>): String =
+    fun encode(counts: Map<String, Int>): String =
         counts.entries.joinToString(",") { "${it.key}:${it.value}" }
-
 }

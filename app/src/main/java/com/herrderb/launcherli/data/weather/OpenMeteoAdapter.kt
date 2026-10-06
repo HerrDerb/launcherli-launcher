@@ -1,7 +1,7 @@
 package com.herrderb.launcherli.data.weather
 
+import com.herrderb.launcherli.data.USER_AGENT
 import android.util.Log
-import com.posthog.PostHog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
@@ -28,10 +28,9 @@ class OpenMeteoAdapter : WeatherAdapter {
                     "&current_weather=true&hourly=temperature_2m,weather_code" +
                     "&daily=temperature_2m_max&timezone=auto&forecast_days=1"
             )
-            PostHog.capture(event = "openmeteo_fetch")
             val connection = url.openConnection() as HttpURLConnection
             connection.useCaches = false
-            connection.setRequestProperty("User-Agent", "Launcherli/1.0")
+            connection.setRequestProperty("User-Agent", USER_AGENT)
             connection.setRequestProperty("Cache-Control", "no-cache")
             connection.connectTimeout = 10000
             connection.readTimeout = 10000
@@ -54,34 +53,39 @@ class OpenMeteoAdapter : WeatherAdapter {
             val json = connection.inputStream.bufferedReader().use { it.readText() }
             connection.disconnect()
 
-            val temperature = extractJsonFloat(json, "temperature") ?: return@withContext null
-            val weatherCode = extractJsonInt(json, "weathercode") ?: 0
-            val condition = wmoCodeToCondition(weatherCode)
-
-            // Hourly arrays run 00:00..23:00 local, so the array index == local hour.
-            val currentHour = extractCurrentHour(json)
-
-            // Extract +1h forecast condition from hourly.weather_code array
-            val forecastCondition = currentHour?.let { extractHourlyWeatherCode(json, it + 1) }
-                ?.let { wmoCodeToCondition(it) }
-
-            // Day's max temperature, and whether the hour it occurs is still ahead.
-            val maxTemperature = extractFirstArrayFloat(json, "temperature_2m_max")
-            val hourlyTemps = extractFloatArray(json, "temperature_2m")
-            val maxHour = hourlyTemps.indices.maxByOrNull { hourlyTemps[it] }
-            val maxTempAhead = currentHour != null && maxHour != null && maxHour > currentHour
-
-            WeatherData(
-                temperature = temperature,
-                condition = condition,
-                forecastCondition = forecastCondition,
-                maxTemperature = maxTemperature,
-                maxTempAhead = maxTempAhead
-            )
+            parse(json)
         } catch (e: Exception) {
             Log.e("OpenMeteoAdapter", "Failed to fetch weather", e)
             null
         }
+    }
+
+    /** Turns an Open-Meteo forecast response into [WeatherData], or null without a temperature. */
+    internal fun parse(json: String): WeatherData? {
+        val temperature = extractJsonFloat(json, "temperature") ?: return null
+        val weatherCode = extractJsonInt(json, "weathercode") ?: 0
+        val condition = wmoCodeToCondition(weatherCode)
+
+        // Hourly arrays run 00:00..23:00 local, so the array index == local hour.
+        val currentHour = extractCurrentHour(json)
+
+        // Extract +1h forecast condition from hourly.weather_code array
+        val forecastCondition = currentHour?.let { extractHourlyWeatherCode(json, it + 1) }
+            ?.let { wmoCodeToCondition(it) }
+
+        // Day's max temperature, and whether the hour it occurs is still ahead.
+        val maxTemperature = extractFirstArrayFloat(json, "temperature_2m_max")
+        val hourlyTemps = extractFloatArray(json, "temperature_2m")
+        val maxHour = hourlyTemps.indices.maxByOrNull { hourlyTemps[it] }
+        val maxTempAhead = currentHour != null && maxHour != null && maxHour > currentHour
+
+        return WeatherData(
+            temperature = temperature,
+            condition = condition,
+            forecastCondition = forecastCondition,
+            maxTemperature = maxTemperature,
+            maxTempAhead = maxTempAhead
+        )
     }
 
     private fun wmoCodeToCondition(code: Int): WeatherCondition = when (code) {

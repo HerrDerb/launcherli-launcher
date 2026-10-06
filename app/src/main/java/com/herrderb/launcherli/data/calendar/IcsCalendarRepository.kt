@@ -1,10 +1,11 @@
 package com.herrderb.launcherli.data.calendar
 
+import com.herrderb.launcherli.data.USER_AGENT
 import android.util.Log
-import com.posthog.PostHog
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -38,7 +39,7 @@ class IcsCalendarRepository {
         val startDate: LocalDate,
         val startTime: LocalTime?,        // null = all-day
         val rrule: Map<String, String>?,
-        val until: LocalDate?,
+        val until: LocalDateTime?,        // inclusive; date-only UNTIL covers that whole day
         val byDays: Set<Int>,             // 1=Mon..7=Sun (weekly BYDAY)
         val interval: Int,
         val exDates: Set<LocalDate>
@@ -60,23 +61,24 @@ class IcsCalendarRepository {
     }
 
     private fun download(urlStr: String): String {
-        PostHog.capture(event = "ics_fetch")
         val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
             connectTimeout = 15000
             readTimeout = 20000
             requestMethod = "GET"
             instanceFollowRedirects = true
-            setRequestProperty("User-Agent", "frank-launcher")
+            setRequestProperty("User-Agent", USER_AGENT)
             setRequestProperty("Accept", "text/calendar, */*")
         }
         conn.inputStream.use { return it.bufferedReader().readText() }
     }
 
-    private fun collectWindow(ics: String): AppointmentTimes {
+    internal fun collectWindow(
+        ics: String,
+        today: LocalDate = LocalDate.now(ZoneId.systemDefault()),
+        zone: ZoneId = ZoneId.systemDefault()
+    ): AppointmentTimes {
         // RFC 5545 line unfolding: a CRLF followed by space/tab continues the line.
         val unfolded = ics.replace(Regex("\\r?\\n[ \\t]"), "")
-        val zone = ZoneId.systemDefault()
-        val today = LocalDate.now(zone)
         val tomorrow = today.plusDays(1)
 
         val todayStarts = mutableListOf<Long>()
@@ -149,7 +151,10 @@ class IcsCalendarRepository {
         if (rrule == null) {
             return Ev(sd, startTime, null, null, emptySet(), 1, exDates)
         }
-        val until = rrule["UNTIL"]?.let { runCatching { parseDateTime("UNTIL", it, zone).first }.getOrNull() }
+        val until = rrule["UNTIL"]?.let { v ->
+            runCatching { parseDateTime("UNTIL", v, zone) }.getOrNull()
+                ?.let { (date, time) -> date.atTime(time ?: LocalTime.MAX) }
+        }
         val interval = rrule["INTERVAL"]?.toIntOrNull()?.coerceAtLeast(1) ?: 1
         val byDays = rrule["BYDAY"]?.split(',')
             ?.mapNotNull { dayCode(it.takeLast(2)) }?.toSet() ?: emptySet()
@@ -187,7 +192,7 @@ class IcsCalendarRepository {
         if (date in ev.exDates) return false
         val rule = ev.rrule ?: return date == ev.startDate
         if (date.isBefore(ev.startDate)) return false
-        ev.until?.let { if (date.isAfter(it)) return false }
+        ev.until?.let { if (date.atTime(ev.startTime ?: LocalTime.MIN).isAfter(it)) return false }
 
         return when (rule["FREQ"]?.uppercase()) {
             "DAILY" -> ChronoUnit.DAYS.between(ev.startDate, date) % ev.interval == 0L
