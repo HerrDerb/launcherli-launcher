@@ -53,6 +53,7 @@ fun AppDrawerScreen(
     onAppLaunch: (AppInfo) -> Unit,
     onAddFavorite: (AppInfo) -> Unit,
     onRemoveFavorite: (AppInfo) -> Unit,
+    onClearUsage: (AppInfo) -> Unit,
     onBack: () -> Unit,
     isFullyVisible: Boolean = false,
     modifier: Modifier = Modifier
@@ -185,6 +186,7 @@ fun AppDrawerScreen(
                             },
                             onAddFavorite = { onAddFavorite(app) },
                             onRemoveFavorite = { onRemoveFavorite(app) },
+                            onClearUsage = { onClearUsage(app) },
                             onLongPress = { focusManager.clearFocus() }
                         )
                     }
@@ -336,7 +338,9 @@ private fun DrawerAppRow(
     onAddFavorite: () -> Unit,
     onRemoveFavorite: () -> Unit,
     onLongPress: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Shown only in the "most used" section: resets the app's launch count. */
+    onClearUsage: (() -> Unit)? = null
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
@@ -408,6 +412,15 @@ private fun DrawerAppRow(
                     if (isFavorite) onRemoveFavorite() else onAddFavorite()
                 }
             )
+            if (onClearUsage != null) {
+                DropdownMenuItem(
+                    text = { Text("Clear") },
+                    onClick = {
+                        showMenu = false
+                        onClearUsage()
+                    }
+                )
+            }
             DropdownMenuItem(
                 text = { Text("App info") },
                 onClick = {

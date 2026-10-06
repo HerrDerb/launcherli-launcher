@@ -33,4 +33,28 @@ class UsageCountsTest {
     fun recordingIncrements() {
         assertEquals(mapOf("k/x" to 3), UsageCounts.record(mapOf("k/x" to 2), "k/x"))
     }
+
+    private val phone = AppInfo("Phone", "com.x", "com.x.Phone")
+    private val contacts = AppInfo("Contacts", "com.x", "com.x.Contacts")
+    private val other = AppInfo("Other", "com.o", "com.o.Main")
+    private val apps = listOf(contacts, phone, other)
+
+    @Test
+    fun clearingRemovesOnlyThatApp() {
+        val counts = mapOf(phone.key to 9, other.key to 6)
+        assertEquals(mapOf(other.key to 6), UsageCounts.clear(counts, phone, apps))
+    }
+
+    @Test
+    fun clearingAlsoRemovesALegacyEntryForTheSameApp() {
+        // "com.x" resolves to the package's first activity, Contacts.
+        val counts = mapOf("com.x" to 4, contacts.key to 3, other.key to 6)
+        assertEquals(mapOf(other.key to 6), UsageCounts.clear(counts, contacts, apps))
+    }
+
+    @Test
+    fun clearingKeepsALegacyEntryThatBelongsToAnotherActivity() {
+        val counts = mapOf("com.x" to 4, phone.key to 3)
+        assertEquals(mapOf("com.x" to 4), UsageCounts.clear(counts, phone, apps))
+    }
 }

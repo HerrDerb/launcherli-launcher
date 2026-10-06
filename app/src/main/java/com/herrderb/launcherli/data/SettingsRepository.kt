@@ -128,6 +128,14 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { it.remove(APP_USAGE_COUNTS) }
     }
 
+    /** Resets [app]'s launch count; see [UsageCounts.clear]. */
+    suspend fun clearAppLaunches(app: AppInfo, apps: List<AppInfo>) {
+        context.dataStore.edit { prefs ->
+            val counts = UsageCounts.clear(UsageCounts.decode(prefs[APP_USAGE_COUNTS]), app, apps)
+            prefs[APP_USAGE_COUNTS] = UsageCounts.encode(counts)
+        }
+    }
+
     /** Increments the drawer launch count for [appKey] (an [AppInfo.key]). */
     suspend fun recordAppLaunch(appKey: String) {
         context.dataStore.edit { prefs ->
@@ -164,6 +172,13 @@ internal object UsageCounts {
         result[appKey] = (result[appKey] ?: 0) + legacy + 1
         return result
     }
+
+    /**
+     * Drops every count that resolves to [app] among [apps], including one saved
+     * under its bare package name, so the app leaves the "most used" list.
+     */
+    fun clear(counts: Map<String, Int>, app: AppInfo, apps: List<AppInfo>): Map<String, Int> =
+        counts.filterKeys { apps.findByKey(it)?.key != app.key }
 
     fun encode(counts: Map<String, Int>): String =
         counts.entries.joinToString(",") { "${it.key}:${it.value}" }
