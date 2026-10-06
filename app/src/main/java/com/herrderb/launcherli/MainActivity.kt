@@ -140,6 +140,9 @@ class MainActivity : ComponentActivity() {
                     // Home + Settings via AnimatedContent
                     AnimatedContent(
                         targetState = if (currentScreen == Screen.SETTINGS) Screen.SETTINGS else Screen.HOME,
+                        // Fully covered by the open drawer: skip drawing it (read in the draw
+                        // phase only, so opening and closing cause no recomposition).
+                        modifier = Modifier.graphicsLayer { alpha = if (drawerSettledOpen) 0f else 1f },
                         transitionSpec = {
                             when (targetState) {
                                 Screen.SETTINGS -> (slideInVertically(
@@ -242,7 +245,8 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier
                                 .fillMaxSize()
                                 .graphicsLayer { translationX = size.width * drawerOffset.value }
-                                .background(MaterialTheme.colorScheme.background.copy(alpha = 0.95f))
+                                // Opaque: nothing of the home screen shines through the list.
+                                .background(MaterialTheme.colorScheme.background)
                         )
                     }
                 }
