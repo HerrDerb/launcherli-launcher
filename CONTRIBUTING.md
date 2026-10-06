@@ -16,7 +16,7 @@ Thanks for your interest in contributing! Here's how to get started.
 - **Android Gradle Plugin** 9.3.1
 - **Gradle** 9.6.1
 - **Compose BOM** 2026.05.01
-- **compileSdk** 36, **targetSdk** 35, **minSdk** 29
+- **compileSdk** 36, **targetSdk** 36, **minSdk** 29
 
 Exact versions live in `build.gradle`, `app/build.gradle` and the Gradle wrapper; Dependabot keeps them current.
 
