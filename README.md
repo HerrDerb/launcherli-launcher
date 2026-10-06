@@ -1,5 +1,7 @@
 # Launcherli Launcher
 
+![Launcherli: a calm, text-only home screen](docs/store-listing/launcherli-feature-graphic-1024x500.png)
+
 A minimalist Android launcher built with Kotlin and Jetpack Compose. Clean, precise, no bloat.
 
 ## Features
@@ -24,7 +26,13 @@ A minimalist Android launcher built with Kotlin and Jetpack Compose. Clean, prec
 
 ## Screenshots
 
-_Coming soon_
+<p>
+  <img src="docs/store-listing/screenshot-1-home.png" alt="Home screen with clock, weather, water temperature, appointment counts and favorites" width="280">
+  &nbsp;
+  <img src="docs/store-listing/screenshot-2-drawer.png" alt="App drawer with search and the most used section" width="280">
+</p>
+
+Store listing assets (icon, feature graphic, screenshots, descriptions) live in [`docs/store-listing`](docs/store-listing).
 
 ## Requirements
 
