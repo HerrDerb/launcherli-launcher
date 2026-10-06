@@ -1,0 +1,41 @@
+Launcherli is a minimal home screen for people who want their phone to be quieter. No icons on the home screen, no feeds, no clutter: just the time, a few useful facts at a glance, and the apps you actually use.
+
+AT A GLANCE
+• Large clock with date and your next alarm. Tap to open your alarms
+• Current weather with temperature, a trend arrow for the next hour, and a short peek at today's high when it is still ahead
+• Water temperature of the nearest river or lake (Switzerland only, data from hydrodaten.admin.ch)
+• Today's and tomorrow's appointment counts from any calendar that offers a public iCalendar (.ics) link
+
+YOUR APPS
+• Favorites as a plain text list. Long-press the home screen to edit: drag to reorder, swipe to remove
+• Swipe left for the app drawer with instant search
+• A "Most used" section that learns from what you open, and lets you clear single apps
+• Optional contact search right in the drawer, with quick call, SMS and WhatsApp actions
+• Work profile apps are included
+
+MAKE IT YOURS
+• Dark, light or system theme
+• Text size and alignment of your favorites
+• Optional icons in the drawer
+• Optional labels for the weather and water stations
+
+PRIVACY BY DESIGN
+• No ads, no analytics, no tracking, no account
+• Weather, water and calendar updates run only while the home screen is open. Nothing polls in the background
+• Your calendar link is stored encrypted on the device
+• Contact search happens on the device and is off by default
+• Open source: every line of code is public on GitHub
+
+LIGHT ON YOUR BATTERY
+Launcherli is designed to do as little work as possible. The clock only updates while the home screen is visible, the screen is only redrawn when something changes, and data is fetched only while you are on the home screen.
+
+PERMISSIONS
+• Approximate location: for the weather and the nearest water station. Without it, those widgets stay empty
+• Contacts (optional): only if you turn on contact search
+• Query all apps: to list your installed apps in the drawer, the core job of a launcher
+
+After installing, set Launcherli as your default home app when asked, or later in your phone's settings.
+
+Weather data: Open-Meteo.com (CC BY 4.0). Water temperature: Swiss Federal Office for the Environment (FOEN).
+
+Source code and issue tracker: github.com/HerrDerb/launcherli-launcher
