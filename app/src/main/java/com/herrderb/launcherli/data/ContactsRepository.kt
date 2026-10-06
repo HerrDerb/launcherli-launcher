@@ -132,11 +132,11 @@ class ContactsRepository(private val context: Context) {
     }
 
     fun dial(number: String) {
-        startSafely(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number")))
+        startSafely(Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", number, null)))
     }
 
     fun sms(number: String) {
-        startSafely(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$number")))
+        startSafely(Intent(Intent.ACTION_SENDTO, Uri.fromParts("smsto", number, null)))
     }
 
     /**

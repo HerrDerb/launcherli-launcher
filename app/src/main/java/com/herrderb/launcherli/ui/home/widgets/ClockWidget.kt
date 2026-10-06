@@ -10,7 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -22,46 +22,67 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import java.text.SimpleDateFormat
-import java.util.Date
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LifecycleStartEffect
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
-/** Live clock/date/next-alarm state, refreshed every minute via ACTION_TIME_TICK. */
+/** Clock texts for one moment; pure so it can be tested and always uses the zone passed in. */
+internal data class ClockText(val time: String = "", val date: String = "", val nextAlarm: String = "")
+
+internal fun clockText(nowMs: Long, zone: ZoneId, locale: Locale, nextAlarmMs: Long?): ClockText {
+    val time = DateTimeFormatter.ofPattern("HH:mm", locale)
+    val date = DateTimeFormatter.ofPattern("EEE. d MMM", locale)
+    val alarm = nextAlarmMs
+        ?.takeIf { it - nowMs <= TimeUnit.DAYS.toMillis(1) }
+        ?.let { time.format(Instant.ofEpochMilli(it).atZone(zone)) }
+        .orEmpty()
+    val now = Instant.ofEpochMilli(nowMs).atZone(zone)
+    return ClockText(time.format(now), date.format(now), alarm)
+}
+
+/** Live clock/date/next-alarm state. Read it in the leaf composables that display it. */
+@Stable
 internal class ClockState {
-    var time by mutableStateOf("")
-    var date by mutableStateOf("")
-    var nextAlarm by mutableStateOf("")
+    var text by mutableStateOf(ClockText())
     var nowMs by mutableLongStateOf(System.currentTimeMillis())
 }
 
+/**
+ * Updates once a minute via ACTION_TIME_TICK, plus immediately on time, zone,
+ * locale or next-alarm changes. The receiver exists only while the launcher is
+ * visible, so the process is not woken every minute while it sits in the background.
+ */
 @Composable
 internal fun rememberClockState(): ClockState {
     val context = LocalContext.current
     val state = remember { ClockState() }
-    DisposableEffect(Unit) {
+    LifecycleStartEffect(Unit) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
-        val dateFormatter = SimpleDateFormat("EEE. d MMM", Locale.getDefault())
 
         fun update() {
             val now = System.currentTimeMillis()
             state.nowMs = now
-            val date = Date(now)
-            state.time = timeFormatter.format(date)
-            state.date = dateFormatter.format(date)
-            val nextAlarm = alarmManager.nextAlarmClock
-            state.nextAlarm = if (nextAlarm != null && nextAlarm.triggerTime - now <= 24 * 60 * 60 * 1000L) {
-                timeFormatter.format(Date(nextAlarm.triggerTime))
-            } else ""
+            state.text = clockText(now, ZoneId.systemDefault(), Locale.getDefault(), alarmManager.nextAlarmClock?.triggerTime)
         }
 
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(p0: Context?, p1: Intent?) = update()
         }
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_TIME_TICK)
+            addAction(Intent.ACTION_TIME_CHANGED)
+            addAction(Intent.ACTION_TIMEZONE_CHANGED)
+            addAction(Intent.ACTION_LOCALE_CHANGED)
+            addAction(AlarmManager.ACTION_NEXT_ALARM_CLOCK_CHANGED)
+        }
 
         update()
-        context.registerReceiver(receiver, IntentFilter(Intent.ACTION_TIME_TICK))
-        onDispose { context.unregisterReceiver(receiver) }
+        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        onStopOrDispose { context.unregisterReceiver(receiver) }
     }
     return state
 }
@@ -75,14 +96,14 @@ internal fun rememberClockState(): ClockState {
  */
 @Composable
 internal fun ClockWidget(
-    time: String,
+    clock: ClockState,
     onLineMeasured: (left: Float, right: Float) -> Unit,
     onPositioned: (startX: Float, endX: Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     Text(
-        text = time,
+        text = clock.text.time,
         fontSize = 64.sp,
         fontWeight = FontWeight.Light,
         color = MaterialTheme.colorScheme.onBackground,

@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.herrderb.launcherli.data.AppInfo
 import com.herrderb.launcherli.ui.home.widgets.CalendarWidget
+import com.herrderb.launcherli.ui.home.widgets.ClockState
 import com.herrderb.launcherli.ui.home.widgets.ClockWidget
 import com.herrderb.launcherli.ui.home.widgets.HydroWidget
 import com.herrderb.launcherli.ui.home.widgets.WeatherWidget
@@ -105,7 +106,7 @@ fun HomeScreen(
 
                     // Clock time (center)
                     ClockWidget(
-                        time = clock.time,
+                        clock = clock,
                         onLineMeasured = { left, right ->
                             clockLineLeft = left
                             clockLineRight = right
@@ -143,47 +144,8 @@ fun HomeScreen(
                     } else 0.dp
 
                     Spacer(modifier = Modifier.weight(1f))
-                    if (clock.nextAlarm.isNotEmpty()) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable {
-                                // Open the clock app's alarm list.
-                                val intent = Intent(AlarmClock.ACTION_SHOW_ALARMS)
-                                runCatching { context.startActivity(intent) }
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Alarm,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text(
-                                text = clock.nextAlarm,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Light,
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                    }
-                    Text(
-                        text = clock.date,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Light,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                        modifier = Modifier.clickable {
-                            // Open the device's default calendar on its main screen.
-                            // A plain launcher intent (no time/event data) avoids the
-                            // "Invalid appointment" error Proton shows for day deep-links.
-                            val intent = Intent.makeMainSelectorActivity(
-                                Intent.ACTION_MAIN,
-                                Intent.CATEGORY_APP_CALENDAR
-                            )
-                            runCatching { context.startActivity(intent) }
-                        }
-                    )
+                    NextAlarm(clock)
+                    DateText(clock)
                     Spacer(modifier = Modifier.width(alarmEndPad))
                 }
 
@@ -196,7 +158,7 @@ fun HomeScreen(
                     CalendarWidget(
                         todayStarts = uiState.todayAppointmentStarts,
                         tomorrowCount = uiState.tomorrowAppointments,
-                        nowMs = clock.nowMs,
+                        clock = clock,
                         provider = uiState.calendarProvider,
                         endPad = apptEndPad
                     )
@@ -243,4 +205,57 @@ fun HomeScreen(
             onDismiss = { showBottomSheet = false }
         )
     }
+}
+
+// Clock reads live in these small composables, so the minute tick recomposes only
+// the texts that change instead of the whole home screen.
+
+@Composable
+private fun NextAlarm(clock: ClockState) {
+    val alarm = clock.text.nextAlarm
+    if (alarm.isEmpty()) return
+    val context = LocalContext.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.clickable {
+            // Open the clock app's alarm list.
+            runCatching { context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS)) }
+        }
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Alarm,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+            modifier = Modifier.size(14.dp)
+        )
+        Spacer(modifier = Modifier.width(3.dp))
+        Text(
+            text = alarm,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Light,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+        )
+    }
+    Spacer(modifier = Modifier.width(12.dp))
+}
+
+@Composable
+private fun DateText(clock: ClockState) {
+    val context = LocalContext.current
+    Text(
+        text = clock.text.date,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Light,
+        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+        modifier = Modifier.clickable {
+            // Open the device's default calendar on its main screen.
+            // A plain launcher intent (no time/event data) avoids the
+            // "Invalid appointment" error Proton shows for day deep-links.
+            val intent = Intent.makeMainSelectorActivity(
+                Intent.ACTION_MAIN,
+                Intent.CATEGORY_APP_CALENDAR
+            )
+            runCatching { context.startActivity(intent) }
+        }
+    )
 }

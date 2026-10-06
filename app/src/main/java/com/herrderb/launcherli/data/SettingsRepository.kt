@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import com.herrderb.launcherli.ui.theme.ThemeMode
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "launcherli_settings")
@@ -37,55 +38,57 @@ class SettingsRepository(private val context: Context) {
             "DARK" -> ThemeMode.DARK
             else -> ThemeMode.SYSTEM
         }
-    }
+    }.distinctUntilChanged()
 
     val favoriteApps: Flow<List<String>> = context.dataStore.data.map { prefs ->
         prefs[FAVORITE_APPS]?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
-    }
+    }.distinctUntilChanged()
 
     val homescreenLocked: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[HOMESCREEN_LOCKED] ?: true
-    }
+    }.distinctUntilChanged()
 
     val favoriteTextSize: Flow<Float> = context.dataStore.data.map { prefs ->
         prefs[FAVORITE_TEXT_SIZE] ?: 18f
-    }
+    }.distinctUntilChanged()
 
     val favoriteAlignment: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[FAVORITE_ALIGNMENT] ?: "left"
-    }
+    }.distinctUntilChanged()
 
     val showDrawerIcons: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[SHOW_DRAWER_ICONS] ?: false
-    }
+    }.distinctUntilChanged()
 
     val showWidgetLabels: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[SHOW_WIDGET_LABELS] ?: false
-    }
+    }.distinctUntilChanged()
 
-    val calendarIcsUrl: Flow<String> = context.dataStore.data.map { prefs ->
-        SecretCipher.decrypt(prefs[CALENDAR_ICS_URL] ?: "")
-    }
+    // Decrypting goes through the Keystore daemon, so only do it when the stored
+    // ciphertext actually changes, not on every unrelated preference write.
+    val calendarIcsUrl: Flow<String> =
+        context.dataStore.data.decryptedString(CALENDAR_ICS_URL, SecretCipher::decrypt)
 
     val showMostUsedApps: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[SHOW_MOST_USED] ?: true
-    }
+    }.distinctUntilChanged()
 
     /** Drawer launch counts, keyed by package name. */
     val appUsageCounts: Flow<Map<String, Int>> = context.dataStore.data.map { prefs ->
         UsageCounts.decode(prefs[APP_USAGE_COUNTS])
-    }
+    }.distinctUntilChanged()
 
     val contactSearchEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[CONTACT_SEARCH_ENABLED] ?: false
-    }
+    }.distinctUntilChanged()
 
     suspend fun setThemeMode(mode: ThemeMode) {
         context.dataStore.edit { it[THEME_MODE] = mode.name }
     }
 
-    suspend fun setFavoriteApps(packageNames: List<String>) {
-        context.dataStore.edit { it[FAVORITE_APPS] = packageNames.joinToString(",") }
+    /** Stores favorites by [AppInfo.key], in display order. */
+    suspend fun setFavoriteApps(keys: List<String>) {
+        context.dataStore.edit { it[FAVORITE_APPS] = keys.joinToString(",") }
     }
 
     suspend fun setHomescreenLocked(locked: Boolean) {
@@ -125,17 +128,22 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { it.remove(APP_USAGE_COUNTS) }
     }
 
-    /** Increments the drawer launch count for [packageName]. */
-    suspend fun recordAppLaunch(packageName: String) {
+    /** Increments the drawer launch count for [appKey] (an [AppInfo.key]). */
+    suspend fun recordAppLaunch(appKey: String) {
         context.dataStore.edit { prefs ->
-            val counts = UsageCounts.decode(prefs[APP_USAGE_COUNTS]).toMutableMap()
-            counts[packageName] = (counts[packageName] ?: 0) + 1
+            val counts = UsageCounts.record(UsageCounts.decode(prefs[APP_USAGE_COUNTS]), appKey)
             prefs[APP_USAGE_COUNTS] = UsageCounts.encode(counts)
         }
     }
 }
 
-/** Codec for drawer launch counts, stored as "pkg:count,pkg:count". */
+/** Maps [key] to its decrypted value, decrypting only when the stored value changes. */
+internal fun Flow<Preferences>.decryptedString(
+    key: Preferences.Key<String>,
+    decrypt: (String) -> String
+): Flow<String> = map { it[key] ?: "" }.distinctUntilChanged().map(decrypt)
+
+/** Codec for drawer launch counts, stored as "key:count,key:count". */
 internal object UsageCounts {
 
     fun decode(raw: String?): Map<String, Int> {
@@ -147,6 +155,14 @@ internal object UsageCounts {
             val count = entry.substring(sep + 1).toIntOrNull() ?: return@mapNotNull null
             pkg to count
         }.toMap()
+    }
+
+    /** Adds one launch for [appKey], folding in a count saved under its bare package name. */
+    fun record(counts: Map<String, Int>, appKey: String): Map<String, Int> {
+        val result = counts.toMutableMap()
+        val legacy = result.remove(appKey.substringBefore('/')) ?: 0
+        result[appKey] = (result[appKey] ?: 0) + legacy + 1
+        return result
     }
 
     fun encode(counts: Map<String, Int>): String =
