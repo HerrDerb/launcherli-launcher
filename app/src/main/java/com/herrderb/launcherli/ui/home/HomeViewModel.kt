@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.herrderb.launcherli.data.AppInfo
 import com.herrderb.launcherli.data.AppRepository
+import com.herrderb.launcherli.data.findByKey
 import com.herrderb.launcherli.data.SettingsRepository
 import com.herrderb.launcherli.data.weather.WeatherAdapterRegistry
 import com.herrderb.launcherli.data.weather.WeatherConfig
@@ -17,7 +18,6 @@ import com.herrderb.launcherli.data.calendar.CalendarApp
 import com.herrderb.launcherli.ui.theme.ThemeMode
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ProcessLifecycleOwner
-import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
@@ -68,60 +68,22 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var lastCalendarRefresh = 0L
     private val refreshMutex = Mutex()
 
+    // Bumped by package events; the app list reloads on the next resume, so
+    // installs and updates while the launcher is in the background cost nothing.
+    private val appsVersion = MutableStateFlow(0)
+    private var loadedAppsVersion = -1
+    private val installedApps = MutableStateFlow<List<AppInfo>?>(null)
+
     init {
         viewModelScope.launch {
-            loadApps()
+            appRepository.appChanges().collect { appsVersion.update { it + 1 } }
+        }
 
-            val coreSettings = combine(
-                settingsRepository.themeMode,
-                settingsRepository.favoriteApps,
-                settingsRepository.homescreenLocked,
-                settingsRepository.favoriteTextSize,
-                settingsRepository.favoriteAlignment,
-                settingsRepository.showDrawerIcons,
-                settingsRepository.calendarIcsUrl,
-                settingsRepository.showMostUsedApps,
-                settingsRepository.appUsageCounts
-            ) { params ->
-                val theme = params[0] as ThemeMode
-                @Suppress("UNCHECKED_CAST")
-                val favPackages = params[1] as List<String>
-                val locked = params[2] as Boolean
-                val textSize = params[3] as Float
-                val alignment = params[4] as String
-                val drawerIcons = params[5] as Boolean
-                val icsUrl = params[6] as String
-                val showMostUsed = params[7] as Boolean
-                @Suppress("UNCHECKED_CAST")
-                val usageCounts = params[8] as Map<String, Int>
-
-                val allApps = _uiState.value.allApps
-                val favApps = favPackages.mapNotNull { pkg ->
-                    allApps.find { it.packageName == pkg }
-                }
-                _uiState.value.copy(
-                    themeMode = theme,
-                    favoriteApps = favApps,
-                    homescreenLocked = locked,
-                    allApps = allApps,
-                    favoriteTextSize = textSize,
-                    favoriteAlignment = alignment,
-                    showDrawerIcons = drawerIcons,
-                    calendarIcsUrl = icsUrl,
-                    showMostUsedApps = showMostUsed,
-                    mostUsedApps = mostUsedFrom(usageCounts, allApps)
-                )
-            }
-
-            combine(
-                coreSettings,
-                settingsRepository.showWidgetLabels,
-                settingsRepository.contactSearchEnabled
-            ) { state, showLabels, contactSearch ->
-                state.copy(showWidgetLabels = showLabels, contactSearchEnabled = contactSearch)
-            }.collect { state ->
-                _uiState.value = state
-            }
+        // Settings and apps are merged with update{}, never by writing back a stale
+        // snapshot, so weather/hydro/calendar results arriving meanwhile are kept.
+        viewModelScope.launch {
+            combine(settingsSnapshot(), installedApps.filterNotNull()) { settings, apps -> settings to apps }
+                .collect { (settings, apps) -> _uiState.update { it.withSettings(settings, apps) } }
         }
 
         // Initial + on-change appointment fetch (cheap; only fires when the link changes).
@@ -137,7 +99,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         // user is in other apps. On each return we refresh once if data is stale,
         // then poll at the fixed interval until backgrounded again.
         val appLifecycle = ProcessLifecycleOwner.get()
-        appLifecycle.lifecycleScope.launch {
+        viewModelScope.launch {
+            appLifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                appsVersion.collect { version ->
+                    if (version != loadedAppsVersion) {
+                        loadedAppsVersion = version
+                        loadApps()
+                    }
+                }
+            }
+        }
+        viewModelScope.launch {
             appLifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 if (System.currentTimeMillis() - lastRefresh >= refreshInterval) {
                     refreshWidgets()
@@ -150,7 +122,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
-        appLifecycle.lifecycleScope.launch {
+        viewModelScope.launch {
             appLifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 if (System.currentTimeMillis() - lastCalendarRefresh >= calendarRefreshInterval) {
                     refreshCalendar(settingsRepository.calendarIcsUrl.first())
@@ -226,18 +198,44 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    suspend fun loadApps() {
-        val apps = withContext(Dispatchers.IO) {
-            appRepository.getInstalledApps()
-        }
-        _uiState.update { it.copy(allApps = apps) }
+    private suspend fun loadApps() {
+        installedApps.value = withContext(Dispatchers.IO) { appRepository.getInstalledApps() }
+    }
+
+    private fun settingsSnapshot() = combine(
+        settingsRepository.themeMode,
+        settingsRepository.favoriteApps,
+        settingsRepository.homescreenLocked,
+        settingsRepository.favoriteTextSize,
+        settingsRepository.favoriteAlignment,
+        settingsRepository.showDrawerIcons,
+        settingsRepository.calendarIcsUrl,
+        settingsRepository.showMostUsedApps,
+        settingsRepository.appUsageCounts,
+        settingsRepository.showWidgetLabels,
+        settingsRepository.contactSearchEnabled
+    ) { p ->
+        @Suppress("UNCHECKED_CAST")
+        SettingsSnapshot(
+            themeMode = p[0] as ThemeMode,
+            favoriteKeys = p[1] as List<String>,
+            homescreenLocked = p[2] as Boolean,
+            favoriteTextSize = p[3] as Float,
+            favoriteAlignment = p[4] as String,
+            showDrawerIcons = p[5] as Boolean,
+            calendarIcsUrl = p[6] as String,
+            showMostUsedApps = p[7] as Boolean,
+            usageCounts = p[8] as Map<String, Int>,
+            showWidgetLabels = p[9] as Boolean,
+            contactSearchEnabled = p[10] as Boolean
+        )
     }
 
     /** @param countUsage when true, the launch is tallied for the "most used" list. */
     fun launchApp(appInfo: AppInfo, countUsage: Boolean = false) {
         appRepository.launchApp(appInfo)
         if (countUsage) {
-            viewModelScope.launch { settingsRepository.recordAppLaunch(appInfo.packageName) }
+            viewModelScope.launch { settingsRepository.recordAppLaunch(appInfo.key) }
         }
     }
 
@@ -297,9 +295,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun addFavoriteApp(appInfo: AppInfo) {
         viewModelScope.launch {
-            val current = _uiState.value.favoriteApps.map { it.packageName }.toMutableList()
-            if (appInfo.packageName !in current) {
-                current.add(appInfo.packageName)
+            val current = _uiState.value.favoriteApps.map { it.key }.toMutableList()
+            if (appInfo.key !in current) {
+                current.add(appInfo.key)
                 settingsRepository.setFavoriteApps(current)
             }
         }
@@ -307,24 +305,56 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun removeFavoriteApp(appInfo: AppInfo) {
         viewModelScope.launch {
-            val current = _uiState.value.favoriteApps.map { it.packageName }.toMutableList()
-            current.remove(appInfo.packageName)
+            val current = _uiState.value.favoriteApps.map { it.key }.toMutableList()
+            current.remove(appInfo.key)
             settingsRepository.setFavoriteApps(current)
         }
     }
 
     fun reorderFavorites(apps: List<AppInfo>) {
         viewModelScope.launch {
-            settingsRepository.setFavoriteApps(apps.map { it.packageName })
+            settingsRepository.setFavoriteApps(apps.map { it.key })
         }
     }
 
 }
+
+/** All persisted settings the home UI depends on, read together. */
+internal data class SettingsSnapshot(
+    val themeMode: ThemeMode,
+    val favoriteKeys: List<String>,
+    val homescreenLocked: Boolean,
+    val favoriteTextSize: Float,
+    val favoriteAlignment: String,
+    val showDrawerIcons: Boolean,
+    val calendarIcsUrl: String,
+    val showMostUsedApps: Boolean,
+    val usageCounts: Map<String, Int>,
+    val showWidgetLabels: Boolean,
+    val contactSearchEnabled: Boolean
+)
+
+/** Applies [settings] and [apps]; widget and calendar data are left untouched. */
+internal fun HomeUiState.withSettings(settings: SettingsSnapshot, apps: List<AppInfo>) = copy(
+    themeMode = settings.themeMode,
+    favoriteApps = settings.favoriteKeys.mapNotNull(apps::findByKey).distinctBy { it.key },
+    homescreenLocked = settings.homescreenLocked,
+    allApps = apps,
+    favoriteTextSize = settings.favoriteTextSize,
+    favoriteAlignment = settings.favoriteAlignment,
+    showDrawerIcons = settings.showDrawerIcons,
+    calendarIcsUrl = settings.calendarIcsUrl,
+    showMostUsedApps = settings.showMostUsedApps,
+    mostUsedApps = mostUsedFrom(settings.usageCounts, apps),
+    showWidgetLabels = settings.showWidgetLabels,
+    contactSearchEnabled = settings.contactSearchEnabled
+)
 
 /** Top apps (count ≥ threshold), sorted by launches, mapped to installed apps. */
 internal fun mostUsedFrom(counts: Map<String, Int>, allApps: List<AppInfo>): List<AppInfo> =
     counts.entries
         .filter { it.value >= SettingsRepository.MOST_USED_MIN_LAUNCHES }
         .sortedByDescending { it.value }
-        .mapNotNull { e -> allApps.find { it.packageName == e.key } }
+        .mapNotNull { allApps.findByKey(it.key) }
+        .distinctBy { it.key }
         .take(SettingsRepository.MOST_USED_MAX)

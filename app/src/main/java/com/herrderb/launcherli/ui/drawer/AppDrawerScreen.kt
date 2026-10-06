@@ -1,9 +1,5 @@
 package com.herrderb.launcherli.ui.drawer
 
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
-import android.provider.Settings
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -24,14 +20,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
@@ -39,7 +33,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.graphics.drawable.toBitmap
 import com.herrderb.launcherli.data.AppInfo
 import com.herrderb.launcherli.data.AppRepository
 import com.herrderb.launcherli.data.ContactInfo
@@ -52,7 +45,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun AppDrawerScreen(
     allApps: List<AppInfo>,
-    favoritePackages: List<String>,
+    favoriteKeys: List<String>,
     showIcons: Boolean = false,
     mostUsedApps: List<AppInfo> = emptyList(),
     showMostUsed: Boolean = false,
@@ -76,7 +69,8 @@ fun AppDrawerScreen(
         else allApps.filter { it.label.contains(searchQuery, ignoreCase = true) }
     }
 
-    val favoriteSet = remember(favoritePackages) { favoritePackages.toHashSet() }
+    val favoriteSet = remember(favoriteKeys) { favoriteKeys.toHashSet() }
+    val appRepository = remember { AppRepository(context.applicationContext) }
 
     val contactsRepository = remember { ContactsRepository(context) }
     var contactResults by remember { mutableStateOf<List<ContactInfo>>(emptyList()) }
@@ -179,12 +173,12 @@ fun AppDrawerScreen(
                             modifier = Modifier.padding(bottom = 2.dp)
                         )
                     }
-                    items(mostUsedApps, key = { "mu_${it.packageName}" }) { app ->
+                    items(mostUsedApps, key = { "mu_${it.key}" }) { app ->
                         DrawerAppRow(
                             app = app,
-                            isFavorite = app.packageName in favoriteSet,
+                            isFavorite = app.key in favoriteSet,
                             showIcons = showIcons,
-                            context = context,
+                            appRepository = appRepository,
                             onLaunch = {
                                 focusManager.clearFocus()
                                 onAppLaunch(app)
@@ -201,12 +195,12 @@ fun AppDrawerScreen(
                         )
                     }
                 }
-                items(filteredApps, key = { it.packageName }) { app ->
+                items(filteredApps, key = { it.key }) { app ->
                     DrawerAppRow(
                         app = app,
-                        isFavorite = app.packageName in favoriteSet,
+                        isFavorite = app.key in favoriteSet,
                         showIcons = showIcons,
-                        context = context,
+                        appRepository = appRepository,
                         onLaunch = {
                             focusManager.clearFocus()
                             onAppLaunch(app)
@@ -337,7 +331,7 @@ private fun DrawerAppRow(
     app: AppInfo,
     isFavorite: Boolean,
     showIcons: Boolean,
-    context: Context,
+    appRepository: AppRepository,
     onLaunch: () -> Unit,
     onAddFavorite: () -> Unit,
     onRemoveFavorite: () -> Unit,
@@ -350,7 +344,7 @@ private fun DrawerAppRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .pointerInput(app.packageName) {
+                .pointerInput(app.key) {
                     detectTapGestures(
                         onTap = { onLaunch() },
                         onLongPress = {
@@ -364,12 +358,10 @@ private fun DrawerAppRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (showIcons) {
-                // Decode the icon lazily on IO, only for this visible row.
-                val iconBitmap by produceState<ImageBitmap?>(null, app.packageName) {
-                    value = withContext(Dispatchers.IO) {
-                        AppRepository(context).loadIcon(app.packageName, app.activityName)
-                            ?.toBitmap(48, 48)?.asImageBitmap()
-                    }
+                // Cached icons show immediately; others decode once on IO at display size.
+                val sizePx = with(LocalDensity.current) { 32.dp.roundToPx() }
+                val iconBitmap by produceState(appRepository.cachedIcon(app, sizePx), app.key, sizePx) {
+                    if (value == null) value = withContext(Dispatchers.IO) { appRepository.loadIcon(app, sizePx) }
                 }
                 iconBitmap?.let { bitmap ->
                     Image(
@@ -420,10 +412,7 @@ private fun DrawerAppRow(
                 text = { Text("App info") },
                 onClick = {
                     showMenu = false
-                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                        data = Uri.parse("package:${app.packageName}")
-                    }
-                    context.startActivity(intent)
+                    appRepository.openAppInfo(app)
                 }
             )
         }
