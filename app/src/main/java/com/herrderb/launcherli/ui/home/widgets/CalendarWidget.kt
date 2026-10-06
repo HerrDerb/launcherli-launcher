@@ -26,12 +26,13 @@ import java.util.concurrent.TimeUnit
 internal fun CalendarWidget(
     todayStarts: List<Long>,
     tomorrowCount: Int,
-    nowMs: Long,
+    clock: ClockState,
     provider: CalendarApp?,
     endPad: Dp,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val nowMs = clock.nowMs
     // Opens the provider on the day containing [atMillis]; no-op without a provider.
     val openDay: (Long) -> Unit = { atMillis ->
         provider?.openDayIntent(context, atMillis)?.let { intent ->

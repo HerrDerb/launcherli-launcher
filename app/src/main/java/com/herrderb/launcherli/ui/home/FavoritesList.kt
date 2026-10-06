@@ -12,7 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,9 +50,15 @@ internal fun FavoritesList(
     onDragDrawerEnd: (Float) -> Unit
 ) {
     val density = LocalDensity.current
-    val itemHeight = 40.dp
-    var draggedIndex by remember { mutableStateOf<Int?>(null) }
+    val itemSpacing = 12.dp
+    val listState = rememberLazyListState()
+    // While dragging, the order lives here and is persisted once on release.
+    // Reset whenever the stored favorites change.
+    var order by remember(favoriteApps) { mutableStateOf(favoriteApps) }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    val currentFavorites by rememberUpdatedState(favoriteApps)
+    val currentOnReorder by rememberUpdatedState(onReorderFavorites)
+    val currentOnRemove by rememberUpdatedState(onRemoveFavorite)
 
     // Unlock mode indicator
     if (!homescreenLocked) {
@@ -66,6 +74,7 @@ internal fun FavoritesList(
     }
 
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = startPadding, end = 24.dp, top = 16.dp, bottom = 16.dp)
@@ -74,12 +83,9 @@ internal fun FavoritesList(
                     Modifier.openDrawerOnDrag(onDragDrawer, onDragDrawerEnd)
                 } else Modifier
             ),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(itemSpacing)
     ) {
-        itemsIndexed(
-            items = favoriteApps,
-            key = { _, app -> app.packageName }
-        ) { index, app ->
+        items(items = order, key = { it.key }) { app ->
             var swipeOffsetX by remember { mutableFloatStateOf(0f) }
             val swipeThreshold = with(density) { 100.dp.toPx() }
             val isSwiped = swipeOffsetX < -swipeThreshold
@@ -120,7 +126,7 @@ internal fun FavoritesList(
                         .offset { IntOffset(swipeOffsetX.roundToInt(), 0) }
                         .then(
                             if (!homescreenLocked) {
-                                Modifier.pointerInput(favoriteApps) {
+                                Modifier.pointerInput(app.key) {
                                     detectHorizontalDragGestures(
                                         onDragStart = { swipeOffsetX = 0f },
                                         onHorizontalDrag = { _, dragAmount ->
@@ -129,7 +135,7 @@ internal fun FavoritesList(
                                         },
                                         onDragEnd = {
                                             if (swipeOffsetX < -swipeThreshold) {
-                                                onRemoveFavorite(app)
+                                                currentOnRemove(app)
                                             }
                                             swipeOffsetX = 0f
                                         },
@@ -162,44 +168,32 @@ internal fun FavoritesList(
                             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                             modifier = Modifier
                                 .padding(start = 12.dp)
-                                .pointerInput(favoriteApps) {
+                                // Keyed by the app, not the list: a list change must not
+                                // restart the detector and end the drag after one step.
+                                .pointerInput(app.key) {
+                                    fun commit() {
+                                        dragOffsetY = 0f
+                                        if (order != currentFavorites) currentOnReorder(order)
+                                    }
                                     detectDragGestures(
-                                        onDragStart = {
-                                            draggedIndex = index
-                                            dragOffsetY = 0f
-                                        },
-                                        onDrag = { _, offset ->
+                                        onDragStart = { dragOffsetY = 0f },
+                                        onDrag = { change, offset ->
+                                            change.consume()
                                             dragOffsetY += offset.y
-                                            val itemHeightPx =
-                                                with(density) { (itemHeight + 12.dp).toPx() }
-                                            val moveBy =
-                                                (dragOffsetY / itemHeightPx).toInt()
-                                            if (moveBy != 0 && draggedIndex != null) {
-                                                val fromIndex = draggedIndex!!
-                                                val toIndex = (fromIndex + moveBy)
-                                                    .coerceIn(
-                                                        0,
-                                                        favoriteApps.size - 1
-                                                    )
-                                                if (fromIndex != toIndex) {
-                                                    val list =
-                                                        favoriteApps.toMutableList()
-                                                    val item2 = list.removeAt(fromIndex)
-                                                    list.add(toIndex, item2)
-                                                    onReorderFavorites(list)
-                                                    draggedIndex = toIndex
-                                                    dragOffsetY = 0f
-                                                }
+                                            val rowPx = listState.layoutInfo.visibleItemsInfo
+                                                .firstOrNull { it.key == app.key }?.size
+                                            val from = order.indexOfFirst { it.key == app.key }
+                                            if (rowPx != null && from >= 0) {
+                                                val step = reorderStep(
+                                                    order, from, dragOffsetY,
+                                                    stepPx = rowPx + itemSpacing.toPx()
+                                                )
+                                                order = step.items
+                                                dragOffsetY = step.offsetPx
                                             }
                                         },
-                                        onDragEnd = {
-                                            draggedIndex = null
-                                            dragOffsetY = 0f
-                                        },
-                                        onDragCancel = {
-                                            draggedIndex = null
-                                            dragOffsetY = 0f
-                                        }
+                                        onDragEnd = { commit() },
+                                        onDragCancel = { commit() }
                                     )
                                 }
                         )
@@ -208,4 +202,18 @@ internal fun FavoritesList(
             }
         }
     }
+}
+
+internal data class ReorderStep<T>(val items: List<T>, val index: Int, val offsetPx: Float)
+
+/**
+ * Moves the item at [fromIndex] by as many whole [stepPx] rows as [offsetPx] covers
+ * (clamped to the list), keeping the leftover fraction so the row tracks the finger.
+ */
+internal fun <T> reorderStep(items: List<T>, fromIndex: Int, offsetPx: Float, stepPx: Float): ReorderStep<T> {
+    val steps = (offsetPx / stepPx).toInt()
+    val toIndex = (fromIndex + steps).coerceIn(0, items.lastIndex)
+    if (toIndex == fromIndex) return ReorderStep(items, fromIndex, if (steps == 0) offsetPx else offsetPx - steps * stepPx)
+    val moved = items.toMutableList().apply { add(toIndex, removeAt(fromIndex)) }
+    return ReorderStep(moved, toIndex, offsetPx - steps * stepPx)
 }
