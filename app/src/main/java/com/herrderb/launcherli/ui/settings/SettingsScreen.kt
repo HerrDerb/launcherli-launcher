@@ -10,6 +10,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -22,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.herrderb.launcherli.data.DATA_SOURCES
 import com.herrderb.launcherli.ui.theme.ThemeMode
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -373,6 +375,24 @@ fun SettingsScreen(
                 dismissButton = {
                     TextButton(onClick = { showResetConfirm = false }) { Text("Cancel") }
                 }
+            )
+        }
+
+        // Open-Meteo (CC BY 4.0) requires attribution; FOEN recommends naming the source.
+        SectionHeader("Data sources")
+        DATA_SOURCES.forEach { source ->
+            Text(
+                text = source.attribution,
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        runCatching {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(source.url)))
+                        }
+                    }
+                    .padding(vertical = 6.dp)
             )
         }
 
