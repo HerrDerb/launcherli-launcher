@@ -9,7 +9,7 @@ A minimalist Android launcher built with Kotlin and Jetpack Compose. Clean, prec
 - **Hydro widget** — nearest water-temperature station via hydrodaten.admin.ch (Switzerland only)
 - **Calendar counts** — today/tomorrow appointment counts from any public iCalendar (`.ics`) link; tap opens the provider's app when recognized (e.g. Proton Calendar)
 - **Favorite apps** — text-only list with drag-to-reorder and swipe-to-remove
-- **App drawer** — swipe left to open, with search and a **Most used** section
+- **App drawer** — swipe left to open, with search and a **Most used** section; includes work-profile apps (labelled by the system, e.g. "Work Gmail")
 - **Contact search**: optional; matching contacts show up in the drawer search with call, SMS, WhatsApp and contact card shortcuts
 - **Dark / Light / System theme**
 - **No icons on home screen** — plain, typographic design

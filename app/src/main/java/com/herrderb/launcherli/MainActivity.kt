@@ -1,7 +1,6 @@
 package com.herrderb.launcherli
 
 import android.Manifest
-import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -11,7 +10,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -20,15 +19,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import com.herrderb.launcherli.ui.drawer.AppDrawerScreen
 import com.herrderb.launcherli.ui.home.HomeScreen
 import com.herrderb.launcherli.ui.home.HomeViewModel
@@ -42,8 +42,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Request location permission for weather station selection
-        if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        // Ask for location on a fresh start only, not on every recreate (theme or
+        // configuration change); weather and hydro degrade silently without it.
+        if (savedInstanceState == null &&
+            checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
+        ) {
             requestPermissions(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION), 100)
         }
 
@@ -52,9 +55,12 @@ class MainActivity : ComponentActivity() {
             val uiState by viewModel.uiState.collectAsState()
 
             var showDefaultLauncherPrompt by remember { mutableStateOf(false) }
+            var defaultLauncherChecked by rememberSaveable { mutableStateOf(false) }
 
-            // Check if we're the default launcher
+            // Check once per launcher start whether we're the default home app.
             LaunchedEffect(Unit) {
+                if (defaultLauncherChecked) return@LaunchedEffect
+                defaultLauncherChecked = true
                 val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
                 val resolveInfo = packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
                 val currentDefault = resolveInfo?.activityInfo?.packageName
@@ -86,27 +92,25 @@ class MainActivity : ComponentActivity() {
 
             LauncherliTheme(themeMode = uiState.themeMode) {
                 var currentScreen by remember { mutableStateOf(Screen.HOME) }
-                // Drawer gesture state: 0f = closed, 1f = fully open
-                var drawerProgress by remember { mutableFloatStateOf(0f) }
-                var isDraggingDrawer by remember { mutableStateOf(false) }
-                val drawerOffsetAnim by animateFloatAsState(
-                    targetValue = if (currentScreen == Screen.DRAWER && !isDraggingDrawer) 0f
-                        else if (currentScreen == Screen.HOME && !isDraggingDrawer) 1f
-                        else 1f - drawerProgress,
-                    animationSpec = tween(
-                        durationMillis = if (isDraggingDrawer) 0 else 250,
-                        easing = CubicBezierEasing(0.0f, 0.0f, 0.2f, 1.0f)
-                    ),
-                    label = "drawer_offset",
-                    finishedListener = {
-                        if (it == 0f) currentScreen = Screen.DRAWER
-                        if (it == 1f) currentScreen = Screen.HOME
+                // Drawer offset as a fraction of its width: 1 = hidden off the right
+                // edge, 0 = fully open. Only the drawer's graphicsLayer reads the value,
+                // so dragging and settling move a layer without recomposing anything.
+                val drawerOffset = remember { Animatable(1f) }
+                val scope = rememberCoroutineScope()
+                val drawerShown by remember { derivedStateOf { drawerOffset.value < 1f } }
+                val drawerSettledOpen by remember { derivedStateOf { drawerOffset.value == 0f } }
+                val settleDrawer: (Boolean) -> Unit = { open ->
+                    currentScreen = if (open) Screen.DRAWER else Screen.HOME
+                    scope.launch {
+                        drawerOffset.animateTo(
+                            if (open) 0f else 1f,
+                            tween(250, easing = CubicBezierEasing(0.0f, 0.0f, 0.2f, 1.0f))
+                        )
                     }
-                )
+                }
 
                 BackHandler(enabled = currentScreen != Screen.HOME) {
-                    currentScreen = Screen.HOME
-                    drawerProgress = 0f
+                    if (currentScreen == Screen.DRAWER) settleDrawer(false) else currentScreen = Screen.HOME
                 }
 
                 // On the home screen, fade the status bar out after a moment for a
@@ -156,19 +160,9 @@ class MainActivity : ComponentActivity() {
                                 onAppLaunch = { viewModel.launchApp(it) },
                                 onSwipeLeft = { },
                                 onDragDrawer = { progress ->
-                                    isDraggingDrawer = true
-                                    drawerProgress = progress
+                                    scope.launch { drawerOffset.snapTo(1f - progress) }
                                 },
-                                onDragDrawerEnd = { progress ->
-                                    isDraggingDrawer = false
-                                    if (progress > 0.3f) {
-                                        currentScreen = Screen.DRAWER
-                                        drawerProgress = 1f
-                                    } else {
-                                        currentScreen = Screen.HOME
-                                        drawerProgress = 0f
-                                    }
-                                },
+                                onDragDrawerEnd = { progress -> settleDrawer(progress > 0.3f) },
                                 onToggleLock = { viewModel.toggleHomescreenLock() },
                                 onOpenSettings = { currentScreen = Screen.SETTINGS },
                                 onWeatherClick = {
@@ -225,35 +219,28 @@ class MainActivity : ComponentActivity() {
                     }
 
                     // Drawer overlay - slides from right following gesture
-                    val drawerOffsetFraction = if (isDraggingDrawer) (1f - drawerProgress) else drawerOffsetAnim
-                    if (currentScreen == Screen.DRAWER || drawerProgress > 0f || drawerOffsetAnim < 1f) {
-                        val favoritePackagesList = remember(uiState.favoriteApps) {
-                            uiState.favoriteApps.map { it.packageName }
+                    if (currentScreen == Screen.DRAWER || drawerShown) {
+                        val favoriteKeys = remember(uiState.favoriteApps) {
+                            uiState.favoriteApps.map { it.key }
                         }
                         AppDrawerScreen(
                             allApps = uiState.allApps,
-                            favoritePackages = favoritePackagesList,
+                            favoriteKeys = favoriteKeys,
                             showIcons = uiState.showDrawerIcons,
                             mostUsedApps = uiState.mostUsedApps,
                             showMostUsed = uiState.showMostUsedApps,
                             contactSearchEnabled = uiState.contactSearchEnabled,
                             onAppLaunch = {
                                 viewModel.launchApp(it, countUsage = true)
-                                currentScreen = Screen.HOME
-                                drawerProgress = 0f
+                                settleDrawer(false)
                             },
                             onAddFavorite = { viewModel.addFavoriteApp(it) },
                             onRemoveFavorite = { viewModel.removeFavoriteApp(it) },
-                            onBack = {
-                                currentScreen = Screen.HOME
-                                drawerProgress = 0f
-                            },
-                            isFullyVisible = currentScreen == Screen.DRAWER && !isDraggingDrawer && drawerOffsetFraction == 0f,
+                            onBack = { settleDrawer(false) },
+                            isFullyVisible = currentScreen == Screen.DRAWER && drawerSettledOpen,
                             modifier = Modifier
                                 .fillMaxSize()
-                                .graphicsLayer {
-                                    translationX = size.width * drawerOffsetFraction
-                                }
+                                .graphicsLayer { translationX = size.width * drawerOffset.value }
                                 .background(MaterialTheme.colorScheme.background.copy(alpha = 0.95f))
                         )
                     }
