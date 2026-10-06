@@ -236,6 +236,7 @@ class MainActivity : ComponentActivity() {
                             },
                             onAddFavorite = { viewModel.addFavoriteApp(it) },
                             onRemoveFavorite = { viewModel.removeFavoriteApp(it) },
+                            onClearUsage = { viewModel.clearAppUsage(it) },
                             onBack = { settleDrawer(false) },
                             isFullyVisible = currentScreen == Screen.DRAWER && drawerSettledOpen,
                             modifier = Modifier

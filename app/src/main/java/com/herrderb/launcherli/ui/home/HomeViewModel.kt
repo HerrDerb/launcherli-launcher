@@ -245,6 +245,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun clearAppUsage(appInfo: AppInfo) {
+        viewModelScope.launch {
+            settingsRepository.clearAppLaunches(appInfo, _uiState.value.allApps)
+        }
+    }
+
     fun resetAppUsage() {
         viewModelScope.launch {
             settingsRepository.clearAppUsageCounts()
