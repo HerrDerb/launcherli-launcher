@@ -51,6 +51,11 @@ android {
         compose true
         resValues true
     }
+
+    testOptions {
+        // android.util.Log and friends return defaults instead of throwing in JVM tests.
+        unitTests.returnDefaultValues = true
+    }
 }
 
 dependencies {
@@ -68,7 +73,8 @@ dependencies {
     implementation 'androidx.compose.foundation:foundation'
     implementation 'androidx.datastore:datastore-preferences:1.2.1'
     implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0'
-    implementation 'com.posthog:posthog-android:3.+'
+
+    testImplementation 'junit:junit:4.13.2'
 
     debugImplementation 'androidx.compose.ui:ui-tooling'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
@@ -78,11 +84,12 @@ tasks.register('deploy', Exec) {
     description = 'Build debug APK, install on connected device, and launch the app'
     group = 'development'
     dependsOn 'installDebug'
-    def sdkDir = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT") ?: "${System.getProperty('user.home')}/AppData/Local/Android/Sdk"
-    def adb = "${sdkDir}/platform-tools/adb"
+    // AGP resolves adb from local.properties / ANDROID_HOME, on any OS.
+    def adb = androidComponents.sdkComponents.adb
+    doFirst { executable = adb.get().asFile.absolutePath }
     // Debug build carries the ".debug" applicationId suffix; the activity class
     // itself stays in the com.herrderb.launcherli package.
-    commandLine adb, 'shell', 'am', 'start', '-n',
+    args 'shell', 'am', 'start', '-n',
         'com.herrderb.launcherli.debug/com.herrderb.launcherli.MainActivity',
         '-a', 'android.intent.action.MAIN',
         '-c', 'android.intent.category.HOME'

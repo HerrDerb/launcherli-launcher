@@ -1,8 +1,8 @@
 package com.herrderb.launcherli.data.hydro
 
+import com.herrderb.launcherli.data.USER_AGENT
 import android.content.Context
 import android.util.Log
-import com.posthog.PostHog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -94,10 +94,9 @@ class HydroProvider(private val context: Context) {
     private fun fetchCurrentTemperature(stationKey: String): Double? {
         return try {
             val url = String.format(STATION_DATA_URL, stationKey)
-            PostHog.capture(event = "hydro_fetch")
             val conn = URL(url).openConnection() as HttpURLConnection
             conn.useCaches = false
-            conn.setRequestProperty("User-Agent", "Launcherli/1.0")
+            conn.setRequestProperty("User-Agent", USER_AGENT)
             conn.setRequestProperty("Cache-Control", "no-cache")
             conn.connectTimeout = 10000
             conn.readTimeout = 10000
@@ -146,7 +145,7 @@ class HydroProvider(private val context: Context) {
         // Fetch fresh data
         return try {
             val conn = URL(GEOJSON_URL).openConnection() as HttpURLConnection
-            conn.setRequestProperty("User-Agent", "Launcherli/1.0")
+            conn.setRequestProperty("User-Agent", USER_AGENT)
             conn.connectTimeout = 10000
             conn.readTimeout = 10000
 
@@ -168,31 +167,31 @@ class HydroProvider(private val context: Context) {
             if (cacheFile.exists()) cacheFile.readText() else null
         }
     }
+}
 
-    /**
-     * Approximate WGS84 (lat/lon) to Swiss LV95 (E/N) conversion.
-     * Based on swisstopo formulas.
-     */
-    private fun wgs84ToLv95(lat: Double, lon: Double): Pair<Double, Double> {
-        val latSec = lat * 3600.0
-        val lonSec = lon * 3600.0
+/**
+ * Approximate WGS84 (lat/lon) to Swiss LV95 (E/N) conversion.
+ * Based on swisstopo formulas.
+ */
+internal fun wgs84ToLv95(lat: Double, lon: Double): Pair<Double, Double> {
+    val latSec = lat * 3600.0
+    val lonSec = lon * 3600.0
 
-        val latAux = (latSec - 169028.66) / 10000.0
-        val lonAux = (lonSec - 26782.5) / 10000.0
+    val latAux = (latSec - 169028.66) / 10000.0
+    val lonAux = (lonSec - 26782.5) / 10000.0
 
-        val easting = 2600072.37 +
-            211455.93 * lonAux -
-            10938.51 * lonAux * latAux -
-            0.36 * lonAux * latAux.pow(2) -
-            44.54 * lonAux.pow(3)
+    val easting = 2600072.37 +
+        211455.93 * lonAux -
+        10938.51 * lonAux * latAux -
+        0.36 * lonAux * latAux.pow(2) -
+        44.54 * lonAux.pow(3)
 
-        val northing = 1200147.07 +
-            308807.95 * latAux +
-            3745.25 * lonAux.pow(2) +
-            76.63 * latAux.pow(2) -
-            194.56 * lonAux.pow(2) * latAux +
-            119.79 * latAux.pow(3)
+    val northing = 1200147.07 +
+        308807.95 * latAux +
+        3745.25 * lonAux.pow(2) +
+        76.63 * latAux.pow(2) -
+        194.56 * lonAux.pow(2) * latAux +
+        119.79 * latAux.pow(3)
 
-        return Pair(easting, northing)
-    }
+    return Pair(easting, northing)
 }

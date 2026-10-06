@@ -8,24 +8,14 @@ import android.location.LocationManager
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.net.HttpURLConnection
-import java.net.URL
 import kotlin.math.abs
-import kotlin.math.asin
-import kotlin.math.cos
-import kotlin.math.pow
-import kotlin.math.sin
-import kotlin.math.sqrt
 
 /**
- * Resolves the device location into a [LocationInfo] suitable for picking a weather source.
- *
- * - For Switzerland, finds the nearest MeteoSwiss SwissMetNet station.
- * - For other countries, reverse-geocodes the city name for use with Open-Meteo.
+ * Resolves the device location into a [LocationInfo]: coordinates for Open-Meteo,
+ * a reverse-geocoded city name for the weather label, and whether the device is in
+ * Switzerland (which gates the hydro widget).
  */
 class StationLocator(private val context: Context) {
-
-    private data class Station(val id: String, val lat: Double, val lon: Double, val name: String)
 
     // Last resolved location. Reverse-geocoding is comparatively expensive, so we
     // reuse the previous result while the device hasn't meaningfully moved (~1 km),
@@ -84,37 +74,5 @@ class StationLocator(private val context: Context) {
             } catch (_: Exception) { }
         }
         return null
-    }
-
-    @Volatile private var stationListCache: List<Station>? = null
-
-
-    private fun parseStations(json: String): List<Station> {
-        val stations = mutableListOf<Station>()
-        val featureBlocks = json.split(""""type":"Feature"""")
-        for (block in featureBlocks) {
-            val idMatch = """"id"\s*:\s*"([^"]+)"""".toRegex().find(block) ?: continue
-            val coordMatch = """"coordinates"\s*:\s*\[\s*([\d.]+)\s*,\s*([\d.]+)\s*\]""".toRegex().find(block) ?: continue
-
-            val id = idMatch.groupValues[1]
-            val lon = coordMatch.groupValues[1].toDoubleOrNull() ?: continue
-            val lat = coordMatch.groupValues[2].toDoubleOrNull() ?: continue
-            val title = """"title"\s*:\s*"([^"]+)"""".toRegex().find(block)?.groupValues?.get(1)
-
-            stations.add(Station(id = id, lat = lat, lon = lon, name = title ?: id.uppercase()))
-        }
-        return stations
-    }
-
-    private fun haversineDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-        val r = 6371.0
-        val dLat = Math.toRadians(lat2 - lat1)
-        val dLon = Math.toRadians(lon2 - lon1)
-        val a = sin(dLat / 2).pow(2) + cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLon / 2).pow(2)
-        return r * 2 * asin(sqrt(a))
-    }
-
-    companion object {
-        private const val DEFAULT_STATION_NAME = "Zürich"
     }
 }
