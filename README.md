@@ -52,11 +52,13 @@ _Coming soon_
 
 ## Data Sources
 
-| Widget | Source | Region |
-|--------|--------|--------|
-| Weather (current + forecast) | [Open-Meteo](https://open-meteo.com) | International |
-| Hydro temperature | [hydrodaten.admin.ch](https://www.hydrodaten.admin.ch) | Switzerland |
-| Calendar counts | Any public iCalendar (`.ics`) link | Any provider |
+| Widget | Source | Region | Terms |
+|--------|--------|--------|-------|
+| Weather (current + forecast) | [Open-Meteo](https://open-meteo.com) | International | [CC BY 4.0, non-commercial free tier](https://open-meteo.com/en/terms); attribution required |
+| Hydro temperature | [hydrodaten.admin.ch](https://www.hydrodaten.admin.ch), Swiss Federal Office for the Environment (FOEN) | Switzerland | [Free use](https://www.bafu.admin.ch/dam/de/sd-web/g7vjiKP5LJ11/liefer-nutzungsbedingungen-hydrologische-daten.pdf); naming the source recommended |
+| Calendar counts | Any public iCalendar (`.ics`) link | Any provider | Your own calendar |
+
+The app shows these attributions under **Settings → Data sources**.
 
 ## License
 

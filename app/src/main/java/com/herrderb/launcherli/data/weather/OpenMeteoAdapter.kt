@@ -11,6 +11,10 @@ import java.net.URL
  * Open-Meteo adapter — free, no API key required.
  * Uses latitude/longitude from WeatherConfig.
  * WMO weather codes: https://open-meteo.com/en/docs
+ *
+ * Terms: https://open-meteo.com/en/terms
+ * Free tier is for non-commercial use (no ads, no subscriptions). Data is CC BY 4.0,
+ * so attribution is required; it is shown in Settings via [com.herrderb.launcherli.data.DATA_SOURCES].
  */
 class OpenMeteoAdapter : WeatherAdapter {
 

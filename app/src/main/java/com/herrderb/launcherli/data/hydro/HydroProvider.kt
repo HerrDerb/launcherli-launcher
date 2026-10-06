@@ -11,6 +11,14 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.math.*
 
+/**
+ * Water temperature of the nearest FOEN (BAFU) station, from hydrodaten.admin.ch.
+ *
+ * Terms: https://www.bafu.admin.ch/dam/de/sd-web/g7vjiKP5LJ11/liefer-nutzungsbedingungen-hydrologische-daten.pdf
+ * (linked from https://bafu.admin.ch/de/datenservice-hydrologie-fuer-fliessgewaesser-und-seen).
+ * Free use, commercial and non-commercial; naming the source is recommended and is
+ * shown in Settings via [com.herrderb.launcherli.data.DATA_SOURCES].
+ */
 class HydroProvider(private val context: Context) {
 
     companion object {
