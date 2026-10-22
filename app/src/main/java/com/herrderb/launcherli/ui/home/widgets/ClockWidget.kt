@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.provider.AlarmClock
+import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -117,12 +118,21 @@ internal fun ClockWidget(
                 val startX = coords.positionInRoot().x
                 onPositioned(startX, startX + coords.size.width)
             }
-            .clickable {
-                val intent = Intent(AlarmClock.ACTION_SHOW_ALARMS)
-                try {
-                    context.startActivity(intent)
-                } catch (_: Exception) {
-                }
-            }
+            .clickable { openAlarmList(context) }
     )
+}
+
+/**
+ * Opens the clock app's alarm list. A failed start (no clock app, or a denied
+ * permission) is logged instead of swallowed, so a dead tap leaves a trace.
+ */
+internal fun openAlarmList(
+    context: Context,
+    onFailure: (Exception) -> Unit = { Log.w("ClockWidget", "Cannot open the alarm list", it) }
+): Boolean = try {
+    context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS))
+    true
+} catch (e: Exception) {
+    onFailure(e)
+    false
 }
