@@ -47,6 +47,13 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
+    // F-Droid asks apps to drop AGP's encrypted dependency report, which only
+    // Google can read, from the published artifacts.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+
     buildFeatures {
         compose true
         resValues true
