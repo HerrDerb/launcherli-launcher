@@ -1,0 +1,3 @@
+- Store listing metadata moved into the Fastlane layout for F-Droid.
+- Release builds no longer embed AGP's encrypted dependency report.
+- Build tooling updates (Gradle wrapper, Kotlin Compose plugin).
