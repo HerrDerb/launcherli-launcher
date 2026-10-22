@@ -1,6 +1,6 @@
 # Launcherli Launcher
 
-![Launcherli: a calm, text-only home screen](docs/store-listing/launcherli-feature-graphic-1024x500.png)
+![Launcherli: a calm, text-only home screen](fastlane/metadata/android/en-US/images/featureGraphic.png)
 
 A minimalist Android launcher built with Kotlin and Jetpack Compose. Clean, precise, no bloat.
 
@@ -27,12 +27,12 @@ A minimalist Android launcher built with Kotlin and Jetpack Compose. Clean, prec
 ## Screenshots
 
 <p>
-  <img src="docs/store-listing/screenshot-1-home.png" alt="Home screen with clock, weather, water temperature, appointment counts and favorites" width="280">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" alt="Home screen with clock, weather, water temperature, appointment counts and favorites" width="280">
   &nbsp;
-  <img src="docs/store-listing/screenshot-2-drawer.png" alt="App drawer with search and the most used section" width="280">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" alt="App drawer with search and the most used section" width="280">
 </p>
 
-Store listing assets (icon, feature graphic, screenshots, descriptions) live in [`docs/store-listing`](docs/store-listing).
+Store listing assets (icon, feature graphic, screenshots, descriptions, changelogs) live in the Fastlane layout under [`fastlane/metadata/android/en-US`](fastlane/metadata/android/en-US), which F-Droid reads automatically.
 
 ## Requirements
 

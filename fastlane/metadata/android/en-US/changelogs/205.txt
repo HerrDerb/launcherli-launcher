@@ -1,0 +1,2 @@
+- Tapping the clock now opens AOSP clock apps (SET_ALARM is declared).
+- A failed alarm-list start is logged instead of silently swallowed.
