@@ -1,7 +1,6 @@
 package com.herrderb.launcherli.ui.home
 
 import android.content.Intent
-import android.provider.AlarmClock
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -42,6 +41,7 @@ import com.herrderb.launcherli.ui.home.widgets.ClockState
 import com.herrderb.launcherli.ui.home.widgets.ClockWidget
 import com.herrderb.launcherli.ui.home.widgets.HydroWidget
 import com.herrderb.launcherli.ui.home.widgets.WeatherWidget
+import com.herrderb.launcherli.ui.home.widgets.openAlarmList
 import com.herrderb.launcherli.ui.home.widgets.rememberClockState
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -217,10 +217,7 @@ private fun NextAlarm(clock: ClockState) {
     val context = LocalContext.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.clickable {
-            // Open the clock app's alarm list.
-            runCatching { context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS)) }
-        }
+        modifier = Modifier.clickable { openAlarmList(context) }
     ) {
         Icon(
             imageVector = Icons.Outlined.Alarm,
