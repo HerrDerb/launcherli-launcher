@@ -1,6 +1,9 @@
 package com.herrderb.launcherli
 
 import android.Manifest
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -107,6 +110,19 @@ class MainActivity : ComponentActivity() {
                             tween(250, easing = CubicBezierEasing(0.0f, 0.0f, 0.2f, 1.0f))
                         )
                     }
+                }
+
+                // When the screen turns off, go back to the home screen so the
+                // launcher always starts there after unlocking.
+                DisposableEffect(Unit) {
+                    val receiver = object : BroadcastReceiver() {
+                        override fun onReceive(context: Context, intent: Intent) {
+                            currentScreen = Screen.HOME
+                            scope.launch { drawerOffset.snapTo(1f) }
+                        }
+                    }
+                    registerReceiver(receiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
+                    onDispose { unregisterReceiver(receiver) }
                 }
 
                 BackHandler(enabled = currentScreen != Screen.HOME) {
